@@ -37,6 +37,4 @@ Play!
 License
 ----
 
-Add me as credit
-
 See the included LICENSE file
