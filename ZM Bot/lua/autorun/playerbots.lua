@@ -1,9 +1,8 @@
 include("botnames.lua")
-include("obj_player_bot_extend.lua")
 
 -- Globals
 local SPAWNANDDELETEDIS = 3000
-local MAXZOMBIES = 15
+local MAXZOMBIES = 10000
 
 -- Checks if bot is already in the game used for debugging
 if (#player.GetBots() == 0) then zmBot = nil end
@@ -58,6 +57,7 @@ function check_for_triggers()
 	check_for_traps()
 	check_for_spawner()
 	get_zombie_too_far()
+	move_zombies_to_players()
 end
 
 ----------------------------------------------------
@@ -93,7 +93,7 @@ end
 ----------------------------------------------------
 function check_for_spawner()
 	 -- Pick a Random Player
-	if (self.ZombiesSpawn < MAXZOMBIES) then
+	if (zmBot.ZombiesSpawn < MAXZOMBIES) then
 		local player = table.Random(team.GetPlayers(1))
 		-- Finds closest spawner to a player
 		local pickFirst = false
@@ -121,9 +121,8 @@ end
 -- Spawns a zombie
 ----------------------------------------------------
 function spawn_zombie(ent)
-	print("ads")
 	ent:AddQuery(zmBot, "npc_zombie", 1)
-	self.ZombiesSpawn = self.ZombiesSpawn + 1
+	zmBot.ZombiesSpawn = zmBot.ZombiesSpawn + 1
 end
 
 ----------------------------------------------------
@@ -165,10 +164,21 @@ function kill_zombie(zb)
 	local dmginfo = DamageInfo()
 	dmginfo:SetDamage(zb:Health() * 1.25)
 	zb:TakeDamageInfo(dmginfo) 
-	self.ZombiesSpawn = self.ZombiesSpawn - 1
+	zmBot.ZombiesSpawn = zmBot.ZombiesSpawn - 1
 end
 
+
 ----------------------------------------------------
+-- move_zombies_to_players()
+-- Moves random zombie to random player
+----------------------------------------------------
+function move_zombies_to_players()
+	local player = table.Random(team.GetPlayers(1))
+	local zm = table.Random(ents.FindByClass("npc_*"))
+	if ((IsValid(player)) && (IsValid(zm)) && (zm:GetClass() != "npc_maker")) then zm:ForceGo(player:GetPos()) end
+end
+
+----------------------------------------------------	
 -- Think
 -- Think hook for controlling the bot
 ----------------------------------------------------
