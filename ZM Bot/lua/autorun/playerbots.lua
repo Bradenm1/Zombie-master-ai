@@ -175,7 +175,7 @@ end
 function move_zombies_to_players()
 	local player = table.Random(team.GetPlayers(1))
 	local zm = table.Random(ents.FindByClass("npc_*"))
-	if ((IsValid(player)) && (IsValid(zm)) && (zm:GetClass() != "npc_maker")) then zm:ForceGo(player:GetPos()) end
+	if ((IsValid(player)) && (IsValid(zm)) && (zm:GetClass() != "npc_maker") && (!player:Visible(zm))) then zm:ForceGo(player:GetPos()) end
 end
 
 ----------------------------------------------------	
