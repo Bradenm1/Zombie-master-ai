@@ -2,24 +2,35 @@ include("botnames.lua")
 
 -- Globals
 local SPAWNANDDELETEDIS = 3000
-local MAXZOMBIES = 10000
+local MAXZOMBIES = 60
 
--- Checks if bot is already in the game used for debugging
-if (#player.GetBots() == 0) then zmBot = nil end
+local HUMANTEAM = 1
+local ZOMBIEMASTERTEAM = 2
+
+
 
 -- Command to spawn bot
-concommand.Add( "spawnBot", function()
+--[[concommand.Add( "spawnBot", function()
 	create_player_bot()
 end )
+]]
 
--- Command to kill bots
-concommand.Add( "killAll", function()
-	for _, player in pairs(player.GetAll()) do	
-		if (player.IsZMBot) then
-			player:Kill()
+----------------------------------------------------
+-- get_amount_zm_bots()
+-- Returns amount of Zombie Master bots
+----------------------------------------------------
+function get_amount_zm_bots()
+	local amount = 0
+	for _, bot in pairs(player.GetBots()) do 
+		if (bot.IsZMBot) then
+			amount = amount + 1
 		end
 	end
-end )
+	return amount
+end
+
+-- Checks if bot is already in the game used for debugging
+if (get_amount_zm_bots() == 0) then zmBot = nil end
 
 ----------------------------------------------------
 -- CreatePlayerBot()
@@ -33,7 +44,7 @@ function create_player_bot()
 		bot.ZombiesSpawn = 0
 		zmBot = bot
 		bot:SetZMPoints(1000000)
-	else print( "Cannot create bot. Are you in Single Player?" ) end
+	else print( "Cannot create bot. Do you have free slots or are you in Single Player?" ) end
 end
 
 ----------------------------------------------------
@@ -41,11 +52,11 @@ end
 -- Main Entry point of bot
 ----------------------------------------------------
 function bot_brain()
-	if (zmBot:Team() == 2) then -- Checks if bot is ZM
-		if (#team.GetPlayers(1) > 0) then check_for_triggers() end
+	if (zmBot:Team() == ZOMBIEMASTERTEAM) then -- Checks if bot is ZM
+		if (#team.GetPlayers(HUMANTEAM) > 0) then activators() end -- Checks if there's players still playing as survivors
 	else
-		if (zmBot:Team() == 1) then if (zmBot:Alive()) then zmBot:Kill() end end
-		zmBot:SetTeam(2)
+		if (zmBot:Team() == HUMANTEAM) then if (zmBot:Alive()) then zmBot:Kill() end end
+		zmBot:SetTeam(ZOMBIEMASTERTEAM)
 	end
 end
 
@@ -53,11 +64,14 @@ end
 -- check_for_traps()
 -- Checks for triggers
 ----------------------------------------------------
-function check_for_triggers()
-	check_for_traps()
-	check_for_spawner()
-	get_zombie_too_far()
-	move_zombies_to_players()
+function activators()
+	local cloestSpawnPoint = check_for_closest_spawner() -- Check cloest spawn to players
+	local trapToUse = check_for_traps() -- Check if player is near trap
+	local zombieTable = get_zombie_too_far() -- Gets zombies too far away from players
+	if (IsValid(cloestSpawnPoint)) then spawn_zombie(cloestSpawnPoint) end -- Spawn zombie
+	if (IsValid(trapToUse)) then activate_trap(trapToUse) end -- Use trap
+	if (IsValid(zombieTable)) then kill_all_zombies(zombieTable) end -- Kills given zombies
+	move_zombie_to_player() -- Move random zombie towards random player if non in view of that zombie
 end
 
 ----------------------------------------------------
@@ -69,7 +83,7 @@ function check_for_traps(ply)
 		if ((IsValid(ent)) && (!ent.botUsed)) then
 			for ___, ply in pairs(ents.FindInSphere(ent:GetPos(), 128)) do
 				if ((ply:IsPlayer()) && (ent:Visible(ply))) then
-					activate_trap(ent)
+					return ent -- Return a trap if close to a player and in view
 				end
 			end
 		end
@@ -81,7 +95,6 @@ end
 -- Triggers a trap
 ----------------------------------------------------
 function activate_trap(ent)
-	print(ent)
 	ent:Trigger(zmBot)
 	zmBot:TakeZMPoints(ent:GetCost())
 	ent.botUsed = true
@@ -91,10 +104,10 @@ end
 -- check_for_spawner()
 -- Finds zombies spawners and spawns a zombie
 ----------------------------------------------------
-function check_for_spawner()
+function check_for_closest_spawner()
 	 -- Pick a Random Player
 	if (zmBot.ZombiesSpawn < MAXZOMBIES) then
-		local player = table.Random(team.GetPlayers(1))
+		local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Picks a random player from humanteam
 		-- Finds closest spawner to a player
 		local pickFirst = false
 		local entToUse = nil
@@ -110,9 +123,7 @@ function check_for_spawner()
 				end
 			end
 		end
-		if (entToUse) then -- Use cloest spawn point if there's one
-			spawn_zombie(entToUse)
-		end
+		return entToUse -- Return the closest spawn
 	end
 end
 
@@ -130,20 +141,20 @@ end
 -- Checks for zombies too far away from players and deletes them
 ----------------------------------------------------
 function get_zombie_too_far()
-	local zombiesToDelete = {}
+	local zombies = {}
 	local index = 0
-	for _, ply in pairs(team.GetPlayers(1)) do
+	for _, ply in pairs(team.GetPlayers(HUMANTEAM)) do
 		for __, zb in pairs(ents.FindByClass("npc_*")) do
 			if (ply:GetPos():Distance(zb:GetPos()) > SPAWNANDDELETEDIS) then 
-				zombiesToDelete[index] = zb 
+				zombies[index] = zb 
 			else
-				zombiesToDelete[index] = nil
+				zombies[index] = nil
 			end
 			index = index + 1
 		end
 		index = 0
 	end
-	kill_all_zombies(zombiesToDelete)
+	return zombies
 end
 
 ----------------------------------------------------
@@ -172,9 +183,9 @@ end
 -- move_zombies_to_players()
 -- Moves random zombie to random player
 ----------------------------------------------------
-function move_zombies_to_players()
-	local player = table.Random(team.GetPlayers(1))
-	local zm = table.Random(ents.FindByClass("npc_*"))
+function move_zombie_to_player()
+	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Get Random survivor
+	local zm = table.Random(ents.FindByClass("npc_*")) -- Get random zombie
 	if ((IsValid(player)) && (IsValid(zm)) && (zm:GetClass() != "npc_maker") && (!player:Visible(zm))) then zm:ForceGo(player:GetPos()) end
 end
 
@@ -183,10 +194,6 @@ end
 -- Think hook for controlling the bot
 ----------------------------------------------------
 hook.Add( "Think", "Control_Bot", function()
-	if ((#player.GetBots() == 0) && (#player.GetAll() > 0)) then create_player_bot() end
-	for _, player in pairs(player.GetBots()) do	
-		if (player.IsZMBot) then
-			bot_brain()
-		end
-	end
+	if ((get_amount_zm_bots() == 0) && (#player.GetAll() > 0)) then create_player_bot() end -- Check if there's already a bot on the server and waits for players to join first
+	if (zmBot) then bot_brain() end -- Checks if the bot was created, runs the bot if so
 end )
