@@ -1,7 +1,6 @@
 include("botnames.lua")
 
 -- Globals
-local SPAWNANDDELETEDIS = 3000
 local HUMANTEAM = 1
 local ZOMBIEMASTERTEAM = 2
 
