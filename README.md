@@ -32,7 +32,6 @@ Play!
 
 - Make bot more unpredictable
 - Remove cheating factor
-- Allow bot to spawn more types of zombies
 
 License
 ----
