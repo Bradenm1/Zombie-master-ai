@@ -118,8 +118,9 @@ function check_for_closest_spawner()
 					entToUse = spawn 
 					pickFirst = true
 				else
-					dis = spawn:GetPos():Distance(player:GetPos()) -- Get Distance
-					if ((entToUse:GetPos():Distance(player:GetPos()) > dis) && (spawn:GetPos():Distance(player:GetPos()) < SPAWNANDDELETEDIS)) then entToUse = spawn end -- Check if it's closer
+					local newDis = spawn:GetPos():Distance(player:GetPos()) -- Get Distance of new spawner
+					local oldDis = entToUse:GetPos():Distance(player:GetPos()) -- Get Distance of stored spawner
+					if (((oldDis) > dis) && (newDis < SPAWNANDDELETEDIS)) then entToUse = spawn end -- Check which one is closer
 				end
 			end
 		end
