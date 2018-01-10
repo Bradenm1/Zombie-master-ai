@@ -7,8 +7,6 @@ local MAXZOMBIES = 60
 local HUMANTEAM = 1
 local ZOMBIEMASTERTEAM = 2
 
-
-
 -- Command to spawn bot
 --[[concommand.Add( "spawnBot", function()
 	create_player_bot()
@@ -41,9 +39,7 @@ function create_player_bot()
 	if ((!game.SinglePlayer()) && (#player.GetAll() < game.MaxPlayers())) then
 		local bot = player.CreateNextBot( names[ math.random( #names ) ])
 		bot.IsZMBot = true
-		bot.ZombiesSpawn = 0
 		zmBot = bot
-		bot:SetZMPoints(1000000)
 	else print( "Cannot create bot. Do you have free slots or are you in Single Player?" ) end
 end
 
@@ -55,14 +51,15 @@ function bot_brain()
 	if (zmBot:Team() == ZOMBIEMASTERTEAM) then -- Checks if bot is ZM
 		if (#team.GetPlayers(HUMANTEAM) > 0) then activators() end -- Checks if there's players still playing as survivors
 	else
-		if (zmBot:Team() == HUMANTEAM) then if (zmBot:Alive()) then zmBot:Kill() end end
+		if (zmBot:Team() == HUMANTEAM) then if (zmBot:Alive()) then zmBot:Kill() end end -- Checks if bot is a survivor, if so kills himself
 		zmBot:SetTeam(ZOMBIEMASTERTEAM)
+		zmBot:SetZMPoints(1000000)
 	end
 end
 
 ----------------------------------------------------
 -- check_for_traps()
--- Checks for triggers
+-- Runs stuff
 ----------------------------------------------------
 function activators()
 	local cloestSpawnPoint = check_for_closest_spawner() -- Check cloest spawn to players
@@ -79,10 +76,10 @@ end
 -- Checks for traps within radius of players
 ----------------------------------------------------
 function check_for_traps(ply)
-	for __, ent in pairs(ents.FindByClass("info_manipulate")) do 
-		if ((IsValid(ent)) && (!ent.botUsed)) then
-			for ___, ply in pairs(ents.FindInSphere(ent:GetPos(), 128)) do
-				if ((ply:IsPlayer()) && (ent:Visible(ply))) then
+	for __, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
+		if ((IsValid(ent)) && (!ent.botUsed)) then -- Check if trap is vaild and not used
+			for ___, ply in pairs(ents.FindInSphere(ent:GetPos(), 128)) do -- Checks if any players within given radius of the trap
+				if ((ply:IsPlayer()) && (ent:Visible(ply))) then -- Check if entity is player and is visible to the trap
 					return ent -- Return a trap if close to a player and in view
 				end
 			end
@@ -105,22 +102,17 @@ end
 -- Finds zombies spawners and spawns a zombie
 ----------------------------------------------------
 function check_for_closest_spawner()
-	 -- Pick a Random Player
-	if (zmBot.ZombiesSpawn < MAXZOMBIES) then
+	if (get_zombie_amount() < MAXZOMBIES) then
 		local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Picks a random player from humanteam
-		-- Finds closest spawner to a player
-		local pickFirst = false
-		local entToUse = nil
-		
+		local entToUse = nil -- Default to nil		
 		for __, spawn in pairs(ents.FindByClass("info_zombiespawn")) do -- Find cloest spawn point
 			if (IsValid(spawn)) then
-				if (!pickFirst) then -- Set First Spawner
+				if (entToUse == nil) then -- Set First Spawner in the table to check
 					entToUse = spawn 
-					pickFirst = true
-				else
+				else -- If it's not the first zombie spawner
 					local newDis = spawn:GetPos():Distance(player:GetPos()) -- Get Distance of new spawner
 					local oldDis = entToUse:GetPos():Distance(player:GetPos()) -- Get Distance of stored spawner
-					if (((oldDis) > dis) && (newDis < SPAWNANDDELETEDIS)) then entToUse = spawn end -- Check which one is closer
+					if (((oldDis) > newDis) && (newDis <= SPAWNANDDELETEDIS)) then entToUse = spawn end -- Check which one is closer
 				end
 			end
 		end
@@ -134,7 +126,6 @@ end
 ----------------------------------------------------
 function spawn_zombie(ent)
 	ent:AddQuery(zmBot, "npc_zombie", 1)
-	zmBot.ZombiesSpawn = zmBot.ZombiesSpawn + 1
 end
 
 ----------------------------------------------------
@@ -144,14 +135,14 @@ end
 function get_zombie_too_far()
 	local zombies = {}
 	local index = 0
-	for _, ply in pairs(team.GetPlayers(HUMANTEAM)) do
-		for __, zb in pairs(ents.FindByClass("npc_*")) do
-			if (ply:GetPos():Distance(zb:GetPos()) > SPAWNANDDELETEDIS) then 
-				zombies[index] = zb 
+	for _, ply in pairs(team.GetPlayers(HUMANTEAM)) do -- Loop through survivors
+		for __, zb in pairs(ents.FindByClass("npc_*")) do -- Loop through all zombies
+			if (ply:GetPos():Distance(zb:GetPos()) >= SPAWNANDDELETEDIS) then -- Get distance between zombie and survivor
+				zombies[index] = zb -- Adds zombie to list if not near player
 			else
-				zombies[index] = nil
+				zombies[index] = nil -- Removes zombie from the list if near player
 			end
-			index = index + 1
+			index = index + 1 -- Increment index
 		end
 		index = 0
 	end
@@ -176,7 +167,6 @@ function kill_zombie(zb)
 	local dmginfo = DamageInfo()
 	dmginfo:SetDamage(zb:Health() * 1.25)
 	zb:TakeDamageInfo(dmginfo) 
-	zmBot.ZombiesSpawn = zmBot.ZombiesSpawn - 1
 end
 
 
@@ -188,6 +178,18 @@ function move_zombie_to_player()
 	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Get Random survivor
 	local zm = table.Random(ents.FindByClass("npc_*")) -- Get random zombie
 	if ((IsValid(player)) && (IsValid(zm)) && (zm:GetClass() != "npc_maker") && (!player:Visible(zm))) then zm:ForceGo(player:GetPos()) end
+end
+
+----------------------------------------------------
+-- get_zombie_amount()
+-- Gets amount of zombies currently on the map
+----------------------------------------------------
+function get_zombie_amount()
+	local amount = 0
+	for __, zb in pairs(ents.FindByClass("npc_*")) do -- Loop through all zombies
+		if ((zb:GetClass() != "npc_maker")) then amount = amount + 1 end -- Check if it's a zombie
+	end
+	return amount
 end
 
 ----------------------------------------------------	
