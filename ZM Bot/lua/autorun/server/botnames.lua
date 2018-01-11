@@ -1,3 +1,0 @@
-names = { 
-"Zombie Master Bot"
-}
