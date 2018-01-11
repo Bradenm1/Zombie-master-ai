@@ -1,0 +1,3 @@
+names = { 
+"Zombie Master Bot"
+}

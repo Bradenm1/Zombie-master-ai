@@ -30,7 +30,6 @@ Play!
 
 ### Todos
 
-- Make bot more unpredictable
 - Remove cheating factor
 
 License
