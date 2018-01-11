@@ -25,7 +25,7 @@ local options = {
 	SpawnZombieChance	= 0.5, -- Zombie Spawn Chance
 	BotSpeed			= 1, -- Delay in seconds, Speed of the bot as a whole
 	ZombieSpawnDelay 	= 3, -- Delay in seconds
-	CommandDelay 		= 0.1 -- Delay in seconds
+	CommandDelay 		= 1 -- Delay in seconds
 }
 
 -- Types of Zombies the AI spawn
@@ -112,7 +112,7 @@ function activators()
 	local trapToUse = check_for_traps() -- Check if player is near trap
 	if (IsValid(trapToUse)) then activate_trap(trapToUse) end -- Use trap
 	local zombiesToDelete = get_zombie_too_far() -- Gets zombies too far away from players
-	if (#zombiesToDelete > 0) then kill_all_zombies(zombiesToDelete) end -- Kills given zombies
+	if (zombiesToDelete != nil) then kill_all_zombies(zombiesToDelete) end -- Kills given zombies
 	if (CurTime() > COMMANDDELAY) then move_zombie_to_player() end -- Move random zombie towards random player if non in view of that zombie
 	SPEEDDELAY = CurTime() + options.BotSpeed -- Bot delay
 end
