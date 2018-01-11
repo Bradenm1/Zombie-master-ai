@@ -182,6 +182,7 @@ function check_for_closest_spawner()
 			else entToUse = spawn end -- Set First Spawner in the table to check
 		end
 	end
+	if (entToUse == nil) then return nil end
 	local dis = entToUse:GetPos():Distance(player:GetPos()) -- Get distance of closest spawner to player
 	if (dis > options.SpawnRadius) then return nil end -- Checks if spawn is within distance
 	return entToUse -- Return the closest spawn
