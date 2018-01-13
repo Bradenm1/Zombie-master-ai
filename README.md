@@ -3,24 +3,17 @@ A bot for the gamemode Zombie Master on Garrys Mod.
 Zombie Master requires two players to play and it can be hard to find player soo..
 I figued I would created a bot for people to use for solo play.
 
-![alt text](http://media.moddb.com/images/downloads/1/14/13656/zm_screen04.jpg)
-
-## Reason For Creating
-
-I use to play this a lot back in the day. I wanted a way to play maps again.
-I wanted a bot like this back then for myself, but, did not understand coding.
-Now I understand code, here's the basic bot. Enjoy!
-
 ### Code Example
 
 This bot can currently:
 * Use traps
-* Spawn basic zombies
-* Kill zombies not near players
+* Spawn all types of zombies
+* Command zombies
+* Kill Zombies (No players are near them)
 
 ### Installation
 
-* Download Zombie Master 2 Gamemode
+* Download Zombie Master Gamemode
 * Install in bot at Garrys Mod Addons folder
 
 ### Usage
@@ -28,9 +21,19 @@ This bot can currently:
 Load up a server, make sure you have a player slot available for the bot.
 Play!
 
-### Todos
-
-- Remove cheating factor
+#### Console Commands: 
+* zm_ai_speed - Changes bots global speed. Default: 1
+* zm_ai_debug - Shows debug log in chat of what bot is doing. Default: 0
+* zm_ai_enabled - Disables or Enables the bot. Default: 1
+* zm_ai_dynamic_traps - If traps stats are generated as you go or all generated at round start. Default: 0
+* zm_ai_command_delay - Changes the rate at which it commands zombies. Default: 1
+* zm_ai_zombie_spawn_delay - Rate at which zombies spawn. Default: 3 
+* zm_ai_min_zombie_delete_dis - If zombies go over this distance from players they get deleted. Default: 3000
+* zm_ai_max_zombie_spawn_dis - If a player is within this distance the AI spawns zombies. Default: 3000
+* zm_ai_move_ply_to_last_spawn - Used for debugging.
+* zm_ai_min_distance_to_act_trap - Min distance player has to be for trap to be activated. Default 92 
+* zm_ai_max_zombies_per_player - Max amount of zombies the AI can spawn per player. Default 16
+* zm_ai_max_distance_to_act_trap - Max distance player can be before the AI won't activate the trap. Default: 224
 
 License
 ----
