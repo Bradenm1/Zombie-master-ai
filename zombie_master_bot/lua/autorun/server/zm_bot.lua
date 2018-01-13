@@ -16,7 +16,7 @@ local COMMANDDELAY = CurTime()
 
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
 local playing = true -- If the bot is currently playing
-local lastSpawned = nil
+local lastSpawned = nil -- Last spawner used
 
 -- Bot Options
 -- Chance: 0.0 never use 1.0 always use
@@ -30,7 +30,11 @@ local options = {
 	MaxTrapRange 		= 224, -- Max range to use trap around players
 	TrapUsageRadius		= 128, -- Max distance to use a trap when a player is near
 	UseTrapChance  		= 0.2, -- Use Trap Chance
+	MinTrapChance  		= -0.02, -- Min Trap Chance
+	MaxTrapChance  		= 1, -- Max Trap Chance
 	SpawnZombieChance	= 0.5, -- Zombie Spawn Chance
+	MinSpawnChance		= 0.03, -- Min Zombie Spawn Chance
+	MaxSpawnChance		= 1, -- Max Zombie Spawn Chance
 	BotSpeed			= 1, -- Delay in seconds, Speed of the bot as a whole
 	ZombieSpawnDelay 	= 3, -- Delay in seconds
 	CommandDelay 		= 1, -- Delay in seconds
@@ -40,17 +44,6 @@ local options = {
 	Debug 				= false, -- Used for basic debugging
 	SetUp 				= false, -- Setup for the bot
 	Traps				= {} -- Used to stored the traps at round starts if dynamic is false
-}
-
--- Types of Zombies the AI spawn
--- These are the class names
--- Custom npcs should have prefix of "npc_"
-local zombieTypes = {
-	"npc_zombie",
-	"npc_fastzombie",
-	"npc_dragzombie",
-	"npc_poisonzombie",
-	"npc_burnzombie"
 }
 
 ----------------------------------------------------
@@ -90,7 +83,16 @@ function bot_brain()
 	set_up_stats()
 	if (zmBot:Team() == ZOMBIEMASTERTEAM) then -- Checks if bot is ZM
 		-- Code for running bot should go in statement
-		if ((#team.GetPlayers(HUMANTEAM) > 0) && (CurTime() > SPEEDDELAY)) then activators() end -- Checks if there's players still playing as survivors
+		if ((#team.GetPlayers(HUMANTEAM) > 0) && (CurTime() > SPEEDDELAY)) then -- Checks if there's players still playing as survivors
+			local cloestSpawnPoint = check_for_closest_spawner() -- Check cloest spawn to players
+			if ((cloestSpawnPoint != nil) && (CurTime() > SPAWNDELAY)) then spawn_zombie(cloestSpawnPoint) end -- Spawn zombie
+			local trapToUse, trapKey, tbKey = check_for_traps() -- Check if player is near trap
+			if (trapToUse != nil) then activate_trap(trapToUse, trapKey, tbKey) end -- Use trap
+			local zombiesToDelete = get_zombie_too_far() -- Gets zombies too far away from players
+			if (zombiesToDelete != nil) then kill_all_zombies(zombiesToDelete) end -- Kills given zombies
+			if (CurTime() > COMMANDDELAY) then move_zombie_to_player() end -- Move random zombie towards random player if non in view of that zombie
+			SPEEDDELAY = CurTime() + options.BotSpeed -- Bot delay
+		end
 	else -- Bot is not ZM or round is over, etc..
 		if (zmBot:Team() == HUMANTEAM) then if (zmBot:Alive()) then zmBot:Kill() end end -- Checks if bot is a survivor, if so kills himself
 		gamemode.Call("SetPlayerToZombieMaster", zmBot)
@@ -107,8 +109,8 @@ function set_up_stats()
 	if (!options.SetUp) then -- The setup for the bot 
 		-- This section is done once during the round start
 		if (!options.DynamicTraps) then set_up_all_traps() else
-			options.UseTrapChance = get_chance()
-			options.SpawnZombieChance = get_chance()
+			options.UseTrapChance = get_chance_trap()
+			options.SpawnZombieChance = get_chance_spawn()
 			options.TrapUsageRadius = get_trap_usage_radius()
 		end
 		if ((options.Debug) && (dynamicTraps)) then debug_show_stats() end
@@ -126,12 +128,12 @@ end
 function set_up_all_traps()
 	for _, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
 		table.insert( options.Traps, {
-			Trap = _,
-			UseTrapChance = get_chance(),
+			Trap = ent:MapCreationID(),
+			UseTrapChance = get_chance_trap(),
 			TrapUsageRadius = get_trap_usage_radius()
 		})
 	end
-	--PrintTable(traps)
+	if (options.Debug) then PrintTable(options.Traps) end
 end
 
 ----------------------------------------------------
@@ -145,33 +147,18 @@ function debug_show_stats()
 end
 
 ----------------------------------------------------
--- activators()
--- Runs the triggers for the bot
-----------------------------------------------------
-function activators()
-	local cloestSpawnPoint = check_for_closest_spawner() -- Check cloest spawn to players
-	if ((cloestSpawnPoint != nil) && (CurTime() > SPAWNDELAY)) then spawn_zombie(cloestSpawnPoint) end -- Spawn zombie
-	local trapToUse, trapKey, tbKey = check_for_traps() -- Check if player is near trap
-	if (trapToUse != nil) then activate_trap(trapToUse, trapKey, tbKey) end -- Use trap
-	local zombiesToDelete = get_zombie_too_far() -- Gets zombies too far away from players
-	if (zombiesToDelete != nil) then kill_all_zombies(zombiesToDelete) end -- Kills given zombies
-	if (CurTime() > COMMANDDELAY) then move_zombie_to_player() end -- Move random zombie towards random player if non in view of that zombie
-	SPEEDDELAY = CurTime() + options.BotSpeed -- Bot delay
-end
-
-----------------------------------------------------
 -- check_for_traps()
 -- Checks for traps within radius of players
 -- @return ent Entity: Trap which has been found
 ----------------------------------------------------
 function check_for_traps()
-	for key, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
+	for _, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
 		if (IsValid(ent)) then -- Check if trap is vaild and not used
 			local radius = 128 -- Default Radius only used if errors occur
 			local chance = 0.5 -- Default Chance only used if errors occur
 			if (options.DynamicTraps) then radius = options.TrapUsageRadius else  -- Checks if dynamic is true
 				for __, keyFromTrapTb in pairs(options.Traps) do -- Checks both keys to find the trap in the traps table that's being checked
-					if (key == keyFromTrapTb.Trap) then -- If it's the same trap being checked as the one in the traps table
+					if (ent:MapCreationID() == keyFromTrapTb.Trap) then -- If it's the same trap being checked as the one in the traps table
 						radius = keyFromTrapTb.TrapUsageRadius -- Get the stored radius
 						chance = keyFromTrapTb.UseTrapChance -- Get the stored chance
 					end
@@ -204,7 +191,7 @@ function activate_trap(...)
 	zmBot:TakeZMPoints(arguments[1]:GetCost())
 	if (options.Debug) then zmBot:Say("Trap activated.") end -- Debugging
 	if (options.DynamicTraps) then -- Set new chances
-		options.UseTrapChance = get_chance()
+		options.UseTrapChance = get_chance_trap()
 		options.TrapUsageRadius = get_trap_usage_radius()
 		if (options.Debug) then debug_show_stats() end -- Show new chances
 	end
@@ -245,9 +232,10 @@ end
 -- @return zb String: The zombie to use as class
 ----------------------------------------------------
 function pick_zombie()
-	local zb = zombieTypes[1] -- Default zombie
-	for i=1, #zombieTypes do -- Pick random zombie, not zero based
-		if (get_zombie_chance() == 0) then zb = zombieTypes[i] end -- Checks if this is the zombie to use
+	local tb = gamemode.Call("GetZombieTable", false)
+	local zb = "npc_zombie"
+	for _, zm in pairs(tb) do -- Finds zombie
+		if (get_zombie_chance() == 0) then zb = zm.Class end -- Checks if this is the zombie to use
 	end
 	return zb
 end
@@ -301,7 +289,7 @@ function get_zombie_too_far()
 	local index = 0
 	for _, ply in pairs(team.GetPlayers(HUMANTEAM)) do -- Loop through survivors
 		for __, zb in pairs(ents.FindByClass("npc_*")) do -- Loop through all zombies
-			if ((zb:GetClass() != "npc_maker")) then
+			if (check_zombie_class(zb)) then
 				if (ply:GetPos():Distance(zb:GetPos()) >= options.DeleteRadius) then -- Get distance between zombie and survivor
 					zombies[index] = zb -- Adds zombie to list if not near player
 				else zombies[index] = nil end -- Removes zombie from the list if near player
@@ -344,8 +332,8 @@ end
 ----------------------------------------------------
 function move_zombie_to_player()
 	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Get Random survivor
-	local zm = table.Random(ents.FindByClass("npc_*")) -- Get random zombie
-	if ((IsValid(player)) && (IsValid(zm)) && (zm:GetClass() != "npc_maker")) then zm:ForceGo(player:GetPos()) end
+	local zb = table.Random(ents.FindByClass("npc_*")) -- Get random zombie
+	if ((IsValid(player)) && (IsValid(zb)) && (check_zombie_class(zb))) then zb:ForceGo(player:GetPos()) end
 	COMMANDDELAY = CurTime() + options.CommandDelay
 end
 
@@ -357,10 +345,22 @@ end
 function get_zombie_amount()
 	local amount = 0
 	for __, zb in pairs(ents.FindByClass("npc_*")) do -- Loop through all zombies
-		if ((zb:GetClass() != "npc_maker")) then amount = amount + 1 end -- Check if it's a zombie
+		if (check_zombie_class(zb)) then amount = amount + 1 end -- Check if it's a zombie
 	end
 	return amount
 end
+
+----------------------------------------------------
+-- check_zombie_class()
+-- Check if given ent is a zombie
+----------------------------------------------------
+function check_zombie_class(ent)
+	for _, zb in pairs(gamemode.Call("GetZombieTable", false)) do
+		if (ent:GetClass() == zb.Class) then return true end
+	end
+	return false
+end
+
 
 ----------------------------------------------------
 -- get_max_zombies()
@@ -373,12 +373,22 @@ function get_max_zombies()
 end
 
 ----------------------------------------------------
--- get_chance()
+-- get_chance_trap()
 -- Returns a random decimnal number
 -- @return chance Float: chance
 ----------------------------------------------------
-function get_chance()
-	local chance = math.Rand(0.03, 1) -- 0.03 would be 3% and 1 would be 100%
+function get_chance_trap()
+	local chance = math.Rand(options.MinTrapChance, options.MaxTrapChance) -- Negative means trap won't get used
+	return chance
+end
+
+----------------------------------------------------
+-- get_chance_spawn()
+-- Returns a random decimnal number
+-- @return chance Float: chance
+----------------------------------------------------
+function get_chance_spawn()
+	local chance = math.Rand(options.MinSpawnChance, options.MaxSpawnChance) -- 0.03 would be 3% and 1 would be 100%
 	return chance
 end
 
