@@ -538,6 +538,22 @@ function set_custom_traps_for_map()
 		set_custom_map_trap(1825, nil, nil, nil, false) -- Same door
 		set_custom_map_trap(3373, nil, nil, Vector(-6015, 847, -553), false) -- spawn immolator near door to cut at trains
 		set_custom_map_trap(3396, nil, nil, Vector(-3227, 983, -542), false) -- spawn banshees opposite side
+	elseif (map == "zm_countrytrain_b4") then
+		set_custom_map_trap(2997, nil, nil, Vector(-667, 1517, 63), false) -- Dumb rock
+		set_custom_map_trap(3208, nil, nil, Vector(1872, 2123, 66), true) -- Spawn banshee onto of spawn building
+		set_custom_map_trap(3025, nil, nil, Vector(27, 2492, 46), false) -- Throw rocks onto train tracks
+		set_custom_map_trap(3248, nil, nil, Vector(2805, 1149, 25), false) -- First falling gate
+		set_custom_map_trap(1671, nil, nil, Vector(2849, -597, 37), true) -- Send banshee into shed roof window
+		set_custom_map_trap(3288, nil, nil, Vector(1512, 577, 32), false) -- Spawn two hulks
+		set_custom_map_trap(2498, nil, nil, Vector(2126, -75, 51), false) -- Spawn immolator
+		set_custom_map_trap(3244, nil, nil, Vector(-1879, 2111, 50), false) -- Second falling gate
+		set_custom_map_trap(3008, nil, nil, Vector(598, 37, 114), false) -- Falling rocks at second gate
+		set_custom_map_trap(2008, nil, nil, Vector(-563, -1011, 51), false) -- Raise 2 immolators at gas station
+		set_custom_map_trap(2995, nil, nil, Vector(-1146, 368, 59), false) -- Falling rocks on path
+	elseif (map == "zm_forestroad") then
+		set_custom_map_trap(2047, nil, nil, Vector(2041, 1275, 267), true) -- Zap shed
+		set_custom_map_trap(2254, nil, nil, Vector(4367, -1463, 86), false) -- oil fire
+		set_custom_map_trap(2049, nil, nil, Vector(4775, 2438, 72), true) -- Drop giant rock
 	end
 end
 
