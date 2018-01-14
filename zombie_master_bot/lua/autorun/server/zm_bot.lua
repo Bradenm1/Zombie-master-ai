@@ -18,6 +18,7 @@ local COMMANDDELAY = CurTime()
 
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
 local playing = true -- If the bot is currently playing
+local spawnForcing = true -- Forces players to spawn on game start
 
 -- Bot Options
 -- Chance: 0.0 never use 1.0 always use
@@ -79,7 +80,7 @@ function create_player_bot()
 		local bot = player.CreateNextBot( names[ math.random( #names ) ]) -- Create a bot given the name list
 		bot.IsZMBot = true -- Set bot as ZM bot
 		zmBot = bot -- Assign bot as global for usage
-		gamemode.Call("EndRound")
+		if (spawnForcing) then gamemode.Call("EndRound") end
 	else print( "Cannot create bot. Do you have free slots or are you in Single Player?" ) end -- This prints to console if the bot cannot spawn
 end
 
@@ -630,7 +631,7 @@ concommand.Add( "zm_ai_dynamic_traps", function(ply, cmd, args)
 	end
 end )
 
--- Enable Debugger
+-- Toggle Debugger
 concommand.Add( "zm_ai_debug", function(ply, cmd, args)
 	if (!options.Debug) then 
 		--if (options.View == nil) then create_zm_view() end
@@ -639,6 +640,17 @@ concommand.Add( "zm_ai_debug", function(ply, cmd, args)
 	else 
 		options.Debug = false 
 		print("Debug Disabled")
+	end
+end )
+
+-- Toggle Force Start
+concommand.Add( "zm_ai_enable_force_start", function(ply, cmd, args)
+	if (!spawnForcing) then 
+		spawnForcing = true 
+		print("Force Start Enabled")
+	else 
+		spawnForcing = false 
+		print("Force Start Disabled")
 	end
 end )
 
