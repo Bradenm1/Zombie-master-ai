@@ -1,3 +1,5 @@
+if (SERVER) then
+
 include("botnames.lua")
 
 -- Saving while playing and editing the bot will break it
@@ -16,33 +18,38 @@ local COMMANDDELAY = CurTime()
 
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
 local playing = true -- If the bot is currently playing
-local lastSpawned = nil -- Last spawner used
 
 -- Bot Options
 -- Chance: 0.0 never use 1.0 always use
+-- Radius/Range: Units
 -- Theses are the default stats
+-- Reset each round
 local options = {
 	MaxZombies 			= 60, -- Max zombies this changes depending on the players
-	SpawnRadius			= 3000, -- Max Spawn distance
+	SpawnRadius			= 3000, -- Max spawn distance
 	DeleteRadius 		= 3000, -- Min distance to delete zombies
 	ZombiesPerPlayer	= 14, -- Zombies per player on the server
 	MinTrapRange		= 92, -- Min range to use trap around players
 	MaxTrapRange 		= 224, -- Max range to use trap around players
 	TrapUsageRadius		= 128, -- Max distance to use a trap when a player is near
-	UseTrapChance  		= 0.2, -- Use Trap Chance
-	MinTrapChance  		= -0.02, -- Min Trap Chance
-	MaxTrapChance  		= 1, -- Max Trap Chance
-	SpawnZombieChance	= 0.5, -- Zombie Spawn Chance
-	MinSpawnChance		= 0.03, -- Min Zombie Spawn Chance
-	MaxSpawnChance		= 1, -- Max Zombie Spawn Chance
-	BotSpeed			= 1, -- Delay in seconds, Speed of the bot as a whole
-	ZombieSpawnDelay 	= 3, -- Delay in seconds
-	CommandDelay 		= 1, -- Delay in seconds
+	UseTrapChance  		= 0.2, -- Use trap chance
+	MinTrapChance  		= -0.02, -- Min trap chance
+	MaxTrapChance  		= 1, -- Max trap chance
+	SpawnZombieChance	= 0.5, -- Zombie spawn Chance
+	MinSpawnChance		= 0.03, -- Min zombie spawn chance
+	MaxSpawnChance		= 1, -- Max zombie spawn chance
+	BotSpeed			= 1, -- Delay in seconds, speed of the bot as a whole
+	ZombieSpawnDelay 	= 3, -- Delay in seconds, zombie spawn delay
+	CommandDelay 		= 1, -- Delay in seconds, command zombie delay
 	DynamicTraps		= false, -- If traps chances and actiavtion radius change during gameplay
 								 -- True means it changes on the fly each time a trap is used
 								 -- False means it does not and all traps have set chances and ranges from the start of the round
 	Debug 				= false, -- Used for basic debugging
-	SetUp 				= false, -- Setup for the bot
+	SetUp 				= true, -- Setup for the bot
+	LastSpawned			= nil, -- Last spawner used
+	LastTrapUsed		= nil, -- Last trap used
+	LastZombieCommanded = nil, -- Last zombie commanded
+	View				= nil, -- Where the bot currently is
 	Traps				= {} -- Used to stored the traps at round starts if dynamic is false
 }
 
@@ -72,6 +79,7 @@ function create_player_bot()
 		local bot = player.CreateNextBot( names[ math.random( #names ) ]) -- Create a bot given the name list
 		bot.IsZMBot = true -- Set bot as ZM bot
 		zmBot = bot -- Assign bot as global for usage
+		gamemode.Call("EndRound")
 	else print( "Cannot create bot. Do you have free slots or are you in Single Player?" ) end -- This prints to console if the bot cannot spawn
 end
 
@@ -84,6 +92,7 @@ function bot_brain()
 	if (zmBot:Team() == ZOMBIEMASTERTEAM) then -- Checks if bot is ZM
 		-- Code for running bot should go in statement
 		if ((#team.GetPlayers(HUMANTEAM) > 0) && (CurTime() > SPEEDDELAY)) then -- Checks if there's players still playing as survivors
+			if (options.Debug) then get_creationid_within_range() end
 			local cloestSpawnPoint = check_for_closest_spawner() -- Check cloest spawn to players
 			if ((cloestSpawnPoint != nil) && (CurTime() > SPAWNDELAY)) then spawn_zombie(cloestSpawnPoint) end -- Spawn zombie
 			local trapToUse, trapKey, tbKey = check_for_traps() -- Check if player is near trap
@@ -96,8 +105,8 @@ function bot_brain()
 	else -- Bot is not ZM or round is over, etc..
 		if (zmBot:Team() == HUMANTEAM) then if (zmBot:Alive()) then zmBot:Kill() end end -- Checks if bot is a survivor, if so kills himself
 		gamemode.Call("SetPlayerToZombieMaster", zmBot)
-		zmBot:SetZMPoints(1000000)
-		options.SetUp = false
+		zmBot:SetZMPoints(10000)
+		options.SetUp = true
 	end
 end
 
@@ -106,16 +115,21 @@ end
 -- Sets up the bots stats
 ----------------------------------------------------
 function set_up_stats()
-	if (!options.SetUp) then -- The setup for the bot 
+	if (options.SetUp) then -- The setup for the bot 
 		-- This section is done once during the round start
+		set_custom_stats_for_map() -- Set if certain map is on
 		if (!options.DynamicTraps) then set_up_all_traps() else
 			options.UseTrapChance = get_chance_trap()
 			options.SpawnZombieChance = get_chance_spawn()
 			options.TrapUsageRadius = get_trap_usage_radius()
+			--if (options.Debug) then create_zm_view() end
 		end
 		if ((options.Debug) && (dynamicTraps)) then debug_show_stats() end
+		set_custom_traps_for_map() -- Has to be after
 		SetGlobalBool("zm_round_active", true) -- Fixes hud issue
-		options.SetUp = true
+		options.Debug = false
+		options.View = nil
+		options.SetUp = false
 	else -- Dynamic stats, that can change during the game
 		options.MaxZombies = get_max_zombies()
 	end
@@ -130,7 +144,9 @@ function set_up_all_traps()
 		table.insert( options.Traps, {
 			Trap = ent:MapCreationID(),
 			UseTrapChance = get_chance_trap(),
-			TrapUsageRadius = get_trap_usage_radius()
+			TrapUsageRadius = get_trap_usage_radius(),
+			Position = ent:GetPos(), -- Incase we need to fake it
+			HasToBeVisible = true
 		})
 	end
 	if (options.Debug) then PrintTable(options.Traps) end
@@ -152,27 +168,45 @@ end
 -- @return ent Entity: Trap which has been found
 ----------------------------------------------------
 function check_for_traps()
-	for _, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
+	for _, ent in RandomPairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
 		if (IsValid(ent)) then -- Check if trap is vaild and not used
-			local radius = 128 -- Default Radius only used if errors occur
-			local chance = 0.5 -- Default Chance only used if errors occur
+			local radius, chance, fakePosition, visible
 			if (options.DynamicTraps) then radius = options.TrapUsageRadius else  -- Checks if dynamic is true
 				for __, keyFromTrapTb in pairs(options.Traps) do -- Checks both keys to find the trap in the traps table that's being checked
 					if (ent:MapCreationID() == keyFromTrapTb.Trap) then -- If it's the same trap being checked as the one in the traps table
 						radius = keyFromTrapTb.TrapUsageRadius -- Get the stored radius
 						chance = keyFromTrapTb.UseTrapChance -- Get the stored chance
+						fakePosition = keyFromTrapTb.Position
+						visible = keyFromTrapTb.HasToBeVisible
 					end
 				end 
 			end
-			for ___, ply in pairs(ents.FindInSphere(ent:GetPos(), radius)) do -- Checks if any players within given radius of the trap
-				if ((ply:IsPlayer()) && (ent:Visible(ply)) && (ent:GetActive())) then 
-					if (options.Debug) then zmBot:Say(ply:Nick() .. " Is within a trap at of radius: " .. radius .. " of chance: " .. chance .. " at going off.") end
-					if (options.DynamicTraps) then return ent else return ent, chance, key end -- Non dynamic returns the ent and also the chance and the key
-				end -- Check if entity is player and is visible to the trap
+			for ___, ply in RandomPairs(ents.FindInSphere(fakePosition, radius)) do -- Checks if any players within given radius of the trap
+				if ((ply:IsPlayer()) && (ent:GetActive())) then -- Check if entity is player -- HACK
+					if (visible) then -- If it matters if the trap is visible -- HACK
+						if (ent:Visible(ply)) then -- is visible to the trap -- HACK 
+							print(visible)
+							return return_trap(ply, fakePosition, ent, chance, radius, key) -- HACK
+						end  -- HACK 
+					else -- Does not matter if it's visible or not -- HACK
+						return return_trap(ply, fakePosition, ent, chance, radius, key)  -- HACK
+					end -- HACK
+				end -- HACK
 			end
 		end
 	end
 	return nil -- If no traps were found
+end
+
+----------------------------------------------------
+-- HACK
+----------------------------------------------------
+function return_trap(ply, fakePosition, ent, chance, radius, key)
+	if (options.Debug) then 
+		zmBot:Say(ply:Nick() .. " Is within a trap at of radius: " .. radius .. " of chance: " .. chance .. " at going off.") 
+	end
+	zm_set_view(fakePosition)
+	if (options.DynamicTraps) then return ent else return ent, chance, key end -- Non dynamic returns the ent and also the chance and the key
 end
 
 ----------------------------------------------------
@@ -184,10 +218,10 @@ end
 ----------------------------------------------------
 function activate_trap(...)
 	local arguments = {...} -- Arg1 is the Entity, Arg2 is the chance for that entity depending on if dynamic is enabled
-	local chance = 0.5 -- Default chance only used if errors occur
-	if (options.DynamicTraps) then chance = options.UseTrapChance else chance = arguments[2] end -- Check if traps are set to dynamic
+	local chance = arguments[2] or options.UseTrapChance -- Default chance only used if errors occur
 	if (chance < math.Rand(0, 1)) then return nil end -- Check chances of using the trap
 	arguments[1]:Trigger(zmBot)
+	options.LastTrapUsed = arguments[1]
 	zmBot:TakeZMPoints(arguments[1]:GetCost())
 	if (options.Debug) then zmBot:Say("Trap activated.") end -- Debugging
 	if (options.DynamicTraps) then -- Set new chances
@@ -195,8 +229,17 @@ function activate_trap(...)
 		options.TrapUsageRadius = get_trap_usage_radius()
 		if (options.Debug) then debug_show_stats() end -- Show new chances
 	end
-	table.remove( options.Traps, arguments[3] )
+	--table.remove( options.Traps, arguments[3] )
 	--ent.botUsed = true
+end
+
+----------------------------------------------------
+-- get_last_trap_used()
+-- Returns last trap the AI used
+-- @return options.LastTrapUsed Entity: Trap
+----------------------------------------------------
+function get_last_trap_used()
+	return options.LastTrapUsed
 end
 
 ----------------------------------------------------
@@ -205,12 +248,12 @@ end
 -- @return entToUse Entity: cloeset spawner
 ----------------------------------------------------
 function check_for_closest_spawner()
-	if (get_zombie_amount() > options.MaxZombies) then return nil end
+	if (get_zombie_population() > options.MaxZombies) then return nil end
 	local zombieSpawns = ents.FindByClass("info_zombiespawn")
 	if (#zombieSpawns == 0) then return nil end -- Checks if there's any spawns
 	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Picks a random player from humanteam
 	local entToUse = nil -- Default to nil
-	for __, spawn in pairs(zombieSpawns) do -- Find cloest spawn point
+	for __, spawn in RandomPairs(zombieSpawns) do -- Find cloest spawn point
 		if ((IsValid(spawn)) && (spawn:GetActive())) then
 			if (entToUse != nil) then -- If it's not the first zombie spawner
 				local newDis = spawn:GetPos():Distance(player:GetPos()) -- Get Distance of new spawner
@@ -241,16 +284,6 @@ function pick_zombie()
 end
 
 ----------------------------------------------------
--- get_zombie_chance()
--- Returns the chance of picking a zombie
--- @return chance Integer: chance
-----------------------------------------------------
-function get_zombie_chance()
-	local chance = math.random(0, 10) % 9
-	return chance
-end
-
-----------------------------------------------------
 -- spawn_zombie()
 -- Spawns a zombie
 -- @param ent Entity: Spawn to spawn zombie at
@@ -274,8 +307,11 @@ function spawn_zombie(ent)
 		end
 	end]]
 	ent:AddQuery(zmBot, zb, 1)
-	lastSpawned = ent
-	if (options.Debug) then zmBot:Say("Attempted to spawn: " .. zb) end
+	options.LastSpawned = ent
+	if (options.Debug) then 
+		zm_set_view(ent:GetPos())
+		zmBot:Say("Attempted to spawn: " .. zb) 
+	end
 	SPAWNDELAY = CurTime() + options.ZombieSpawnDelay
 end
 
@@ -318,7 +354,10 @@ end
 -- @param zb Entity: Zombie to be deleted
 ----------------------------------------------------
 function kill_zombie(zb)
-	if (options.Debug) then zmBot:Say("Zombie Has been killed and removed, to far away from any players.") end
+	if (options.Debug) then 
+		zmBot:Say("Zombie Has been killed and removed, to far away from any players.")
+		zm_set_view(zb:GetPos())
+	end
 	local dmginfo = DamageInfo()
 	dmginfo:SetDamage(zb:Health() * 1.25)
 	zb:TakeDamageInfo(dmginfo) 
@@ -334,7 +373,18 @@ function move_zombie_to_player()
 	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Get Random survivor
 	local zb = table.Random(ents.FindByClass("npc_*")) -- Get random zombie
 	if ((IsValid(player)) && (IsValid(zb)) && (check_zombie_class(zb))) then zb:ForceGo(player:GetPos()) end
+	options.LastZombieCommanded = zb
 	COMMANDDELAY = CurTime() + options.CommandDelay
+end
+
+
+----------------------------------------------------
+-- get_last_zombie_commanded()
+-- Returns last zombie the AI commanded
+-- @return options.LastZombieUsed Entity: Zombie
+----------------------------------------------------
+function get_last_zombie_commanded()
+	return options.LastZombieCommanded
 end
 
 ----------------------------------------------------
@@ -342,12 +392,8 @@ end
 -- Gets amount of zombies currently on the map
 -- @return amount Integer: amount of zombies
 ----------------------------------------------------
-function get_zombie_amount()
-	local amount = 0
-	for __, zb in pairs(ents.FindByClass("npc_*")) do -- Loop through all zombies
-		if (check_zombie_class(zb)) then amount = amount + 1 end -- Check if it's a zombie
-	end
-	return amount
+function get_zombie_population()
+	return gamemode.Call("GetCurZombiePop")
 end
 
 ----------------------------------------------------
@@ -370,6 +416,16 @@ end
 function get_max_zombies()
 	local maxZombies = #team.GetPlayers(HUMANTEAM) * options.ZombiesPerPlayer
 	return maxZombies
+end
+
+----------------------------------------------------
+-- get_zombie_chance()
+-- Returns the chance of picking a zombie
+-- @return chance Integer: chance
+----------------------------------------------------
+function get_zombie_chance()
+	local chance = math.random(0, 10) % 9
+	return chance
 end
 
 ----------------------------------------------------
@@ -400,6 +456,104 @@ end
 function get_trap_usage_radius()
 	local radius = math.random(options.MinTrapRange, options.MaxTrapRange) -- 128 to 192
 	return radius
+end
+
+----------------------------------------------------	
+-- create_zm_view()
+-- Creates the box for the current pos of the AI
+----------------------------------------------------
+function create_zm_view()
+	options.View = ents.Create("prop_thumper")
+	if (!IsValid(options.View)) then return end
+	options.View:SetModel( "models/props_wasteland/controlroom_filecabinet001a.mdl" )
+	options.View:SetMaterial( "models/XQM/LightLinesRed_tool", true )
+	options.View:SetColor(Color(255, 0, 0))
+	options.View:SetPos(Vector(0, 0, 0))
+	options.View:StopMotionController()
+	options.View:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+	options.View:Spawn()
+end
+
+----------------------------------------------------	
+-- zm_set_view()
+-- Sets the view for the AI
+-- @param vector Vector: position to move AI
+----------------------------------------------------
+function zm_set_view(vector)
+	--if (options.Debug) then options.View:SetPos(vector) end
+	zmBot:SetPos(vector)
+end
+
+----------------------------------------------------	
+-- set_custom_stats_for_map()
+-- Checks for a certain map and adds custom settings
+----------------------------------------------------
+-- Will be move to another file in the future
+function set_custom_stats_for_map()
+	local map = game.GetMap()
+	if (map == "zm_deathrun_a7") then -- Apply custom settings for map zm_deathrun_a7
+		options.MinTrapRange = 10000 -- Units
+		options.MaxTrapRange = 10001 -- Units
+		options.MinTrapChance = 0.01 -- Percent
+		options.MaxTrapChance = 0.4 -- Percent
+	--elseif (map == "zm_*") then
+	end
+end
+
+----------------------------------------------------	
+-- set_custom_traps_for_map()
+-- Check for a certain map and sets custom traps
+----------------------------------------------------
+-- Will be move to another file in the future
+function set_custom_traps_for_map()
+	local map = game.GetMap()
+	if (map == "zm_asdf_b5") then -- Apply custom settings for map zm_deathrun_a7
+		-- Using function calls within function call paramaters to save space, as set_custom_traps_for_map function could grow very large.
+		set_custom_map_trap( 1255, nil, nil, Vector(-1281.87, -1952.14, -948.30), false) -- Red block that falls with hole in center
+	elseif (map == "zm_gasdump_b4") then
+		set_custom_map_trap( 2452, 0.02, 2096, nil, false) -- Tornado
+	end
+end
+
+----------------------------------------------------	
+-- set_custom_map_trap()
+-- Set custom stats for a certain trap
+-- @param ...
+-- @return Boolean: If CreationID exists and settings were applied
+----------------------------------------------------
+function set_custom_map_trap(...) 
+	local arguments = {...} -- Gets arguments, index 1 cannot be nil
+	for key, trap in pairs(options.Traps) do 
+		if (trap.Trap == arguments[1] ) then
+			-- HACK
+			table.remove( options.Traps, key ) -- Has to be removed or it duplicates, cannot just assign to that key in the table.
+											   -- Does not seem to point at orginal, rather a new slot.
+			table.insert( options.Traps, { -- Add it again
+				Trap = arguments[1] or trap.Trap,
+				UseTrapChance = arguments[2] or trap.UseTrapChance,
+				TrapUsageRadius = arguments[3] or trap.TrapUsageRadius,
+				Position = arguments[4] or trap.Position,
+				HasToBeVisible = arguments[5] -- Boolean 
+			})
+			return true -- Setting was a success
+		end
+	end
+	print("Error setting creationID: " .. arguments[1] .. " does not exists...")
+	return false -- Setting as a failure
+end
+
+----------------------------------------------------	
+-- get_creationid_within_range
+-- used for debugging
+----------------------------------------------------
+function get_creationid_within_range()
+	for _, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
+		for ___, ply in pairs(ents.FindInSphere(ent:GetPos(), 96)) do -- Checks if any players within given radius of the trap
+			if (ply:IsPlayer()) then 
+				print("CreationID: " .. ent:MapCreationID())
+			end
+		end
+	end
 end
 
 ----------------------------------------------------	
@@ -467,27 +621,50 @@ end )
 
 -- If Traps Are Dynamic
 concommand.Add( "zm_ai_dynamic_traps", function(ply, cmd, args)
-	if (args[1] == "1") then options.DynamicTraps = true else options.DynamicTraps = false end
+	if (!options.DynamicTraps) then 
+		options.DynamicTraps = true 
+		print("Dynamic Enabled")
+	else 
+		options.DynamicTraps = false 
+		print("Disabled Enabled")
+	end
 end )
 
 -- Enable Debugger
 concommand.Add( "zm_ai_debug", function(ply, cmd, args)
-	if (args[1] == "1") then options.Debug = true else options.Debug = false end
+	if (!options.Debug) then 
+		--if (options.View == nil) then create_zm_view() end
+		options.Debug = true 
+		print("Debug Enabled")
+	else 
+		options.Debug = false 
+		print("Debug Disabled")
+	end
 end )
+
+-- Forces the round to begin
+concommand.Add( "zm_ai_force_start_round", function(ply, cmd, args)
+	gamemode.Call("EndRound")
+	zmBot:Say("Round forcefully started")
+end)
 
 -- Move Player To Last spawned Zombie Spawn
 concommand.Add( "zm_ai_move_ply_to_last_spawn", function(ply, cmd, args)
-	if (lastSpawned != nil) then ply:SetPos(lastSpawned:GetPos()) end
+	if (options.LastSpawned != nil) then ply:SetPos(options.LastSpawned:GetPos()) end
 end )
 
 
 -- Enabled the AI
 concommand.Add( "zm_ai_enabled", function(ply, cmd, args)
-	if (args[1] == "1") then 
+	if (!playing) then 
 		if ((get_amount_zm_bots() == 0) && (#player.GetAll() > 0)) then create_player_bot() end -- Rejoins the bot
 		playing = true
+		print("AI Enabled")
 	else 
 		zmBot:Kick("AI Terminated") -- Kicks the bot
 		playing = false 
+		print("AI Disabled")
 	end
 end )
+
+end
