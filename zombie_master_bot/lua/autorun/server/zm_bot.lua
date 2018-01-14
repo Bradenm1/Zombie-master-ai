@@ -171,25 +171,25 @@ end
 function check_for_traps()
 	for _, ent in RandomPairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
 		if (IsValid(ent)) then -- Check if trap is vaild and not used
-			local radius, chance, fakePosition, visible
+			local radius, chance, visible
 			if (options.DynamicTraps) then radius = options.TrapUsageRadius else  -- Checks if dynamic is true
 				for __, keyFromTrapTb in pairs(options.Traps) do -- Checks both keys to find the trap in the traps table that's being checked
 					if (ent:MapCreationID() == keyFromTrapTb.Trap) then -- If it's the same trap being checked as the one in the traps table
 						radius = keyFromTrapTb.TrapUsageRadius -- Get the stored radius
 						chance = keyFromTrapTb.UseTrapChance -- Get the stored chance
-						fakePosition = keyFromTrapTb.Position
+						ent:SetPos(keyFromTrapTb.Position)
 						visible = keyFromTrapTb.HasToBeVisible
 					end
 				end 
 			end
-			for ___, ply in RandomPairs(ents.FindInSphere(fakePosition, radius)) do -- Checks if any players within given radius of the trap
+			for ___, ply in RandomPairs(ents.FindInSphere(ent:GetPos(), radius)) do -- Checks if any players within given radius of the trap
 				if ((ply:IsPlayer()) && (ent:GetActive())) then -- Check if entity is player -- HACK
 					if (visible) then -- If it matters if the trap is visible -- HACK
 						if (ent:Visible(ply)) then -- is visible to the trap -- HACK 
-							return return_trap(ply, fakePosition, ent, chance, radius, key) -- HACK
+							return return_trap(ply, ent:GetPos(), ent, chance, radius, key) -- HACK
 						end  -- HACK 
 					else -- Does not matter if it's visible or not -- HACK
-						return return_trap(ply, fakePosition, ent, chance, radius, key)  -- HACK
+						return return_trap(ply, ent:GetPos(), ent, chance, radius, key)  -- HACK
 					end -- HACK
 				end -- HACK
 			end
@@ -201,11 +201,11 @@ end
 ----------------------------------------------------
 -- HACK
 ----------------------------------------------------
-function return_trap(ply, fakePosition, ent, chance, radius, key)
+function return_trap(ply, pos, ent, chance, radius, key)
 	if (options.Debug) then 
 		zmBot:Say(ply:Nick() .. " Is within a trap at of radius: " .. radius .. " of chance: " .. chance .. " at going off.") 
 	end
-	zm_set_view(fakePosition)
+	zm_set_view(pos)
 	if (options.DynamicTraps) then return ent else return ent, chance, key end -- Non dynamic returns the ent and also the chance and the key
 end
 
@@ -481,7 +481,7 @@ end
 ----------------------------------------------------
 function zm_set_view(vector)
 	--if (options.Debug) then options.View:SetPos(vector) end
-	zmBot:SetPos(vector)
+	--zmBot:SetPos(vector)
 end
 
 ----------------------------------------------------	
@@ -527,8 +527,8 @@ function set_custom_traps_for_map()
 		set_custom_map_trap(2367, nil, nil, Vector(2861, -2513, 142), false) -- Second Gate
 		set_custom_map_trap(2710, nil, nil, Vector(3576, 1920, 173), false) -- Motor Bomb
 		set_custom_map_trap(2585, nil, nil, Vector(2096, 3466, 151), false) -- Trailer cannon explosion
-		set_custom_map_trap(2608, nil, nil, Vector(2096, 3466, 151), false) -- Drop Trailer on railing
-		set_custom_map_trap(2518, nil, nil, Vector(-735, 4540, 156), false) -- Open building near boat
+		set_custom_map_trap(2608, nil, nil, Vector(-799, 4488, 105), false) -- Drop Trailer on railing
+		set_custom_map_trap(2518, nil, nil, Vector(-2546, 2752, 105), false) -- Open building near boat
 	elseif (map == "zm_diamondshoals_a2") then
 		set_custom_map_trap(2154, nil, nil, Vector(608, 3188, -1007), false) -- FLoating explosive barrel boat
 		set_custom_map_trap(2163, nil, nil, Vector(1418, 5481, -872), false) -- Crab Sign
@@ -540,20 +540,20 @@ function set_custom_traps_for_map()
 		set_custom_map_trap(3396, nil, nil, Vector(-3227, 983, -542), false) -- spawn banshees opposite side
 	elseif (map == "zm_countrytrain_b4") then
 		set_custom_map_trap(2997, nil, nil, Vector(-667, 1517, 63), false) -- Dumb rock
-		set_custom_map_trap(3208, nil, nil, Vector(1872, 2123, 66), true) -- Spawn banshee onto of spawn building
+		set_custom_map_trap(3244, nil, nil, Vector(907, -503, 46), false) -- Second falling gate
 		set_custom_map_trap(3025, nil, nil, Vector(27, 2492, 46), false) -- Throw rocks onto train tracks
 		set_custom_map_trap(3248, nil, nil, Vector(2805, 1149, 25), false) -- First falling gate
 		set_custom_map_trap(1671, nil, nil, Vector(2849, -597, 37), true) -- Send banshee into shed roof window
 		set_custom_map_trap(3288, nil, nil, Vector(1512, 577, 32), false) -- Spawn two hulks
 		set_custom_map_trap(2498, nil, nil, Vector(2126, -75, 51), false) -- Spawn immolator
-		set_custom_map_trap(3244, nil, nil, Vector(-1879, 2111, 50), false) -- Second falling gate
+		set_custom_map_trap(3208, nil, nil, Vector(-1879, 2111, 50), false) -- Spawn banshee onto of spawn building
 		set_custom_map_trap(3008, nil, nil, Vector(598, 37, 114), false) -- Falling rocks at second gate
 		set_custom_map_trap(2008, nil, nil, Vector(-563, -1011, 51), false) -- Raise 2 immolators at gas station
 		set_custom_map_trap(2995, nil, nil, Vector(-1146, 368, 59), false) -- Falling rocks on path
 	elseif (map == "zm_forestroad") then
 		set_custom_map_trap(2047, nil, nil, Vector(2041, 1275, 267), true) -- Zap shed
-		set_custom_map_trap(2254, nil, nil, Vector(4367, -1463, 86), false) -- oil fire
-		set_custom_map_trap(2049, nil, nil, Vector(4775, 2438, 72), true) -- Drop giant rock
+		set_custom_map_trap(2254, nil, nil, Vector(4367, -1463, 86), false) -- Oil fire
+		set_custom_map_trap(2049, nil, nil, Vector(4742, -2415, 64), true) -- Drop giant rock
 	end
 end
 
