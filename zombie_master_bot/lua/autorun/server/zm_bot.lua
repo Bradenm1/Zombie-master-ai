@@ -186,7 +186,6 @@ function check_for_traps()
 				if ((ply:IsPlayer()) && (ent:GetActive())) then -- Check if entity is player -- HACK
 					if (visible) then -- If it matters if the trap is visible -- HACK
 						if (ent:Visible(ply)) then -- is visible to the trap -- HACK 
-							print(visible)
 							return return_trap(ply, fakePosition, ent, chance, radius, key) -- HACK
 						end  -- HACK 
 					else -- Does not matter if it's visible or not -- HACK
@@ -508,11 +507,37 @@ end
 -- Will be move to another file in the future
 function set_custom_traps_for_map()
 	local map = game.GetMap()
+	-- Using function calls within function call paramaters to save space, as set_custom_traps_for_map function could grow very large.
 	if (map == "zm_asdf_b5") then -- Apply custom settings for map zm_deathrun_a7
-		-- Using function calls within function call paramaters to save space, as set_custom_traps_for_map function could grow very large.
-		set_custom_map_trap( 1255, nil, nil, Vector(-1281.87, -1952.14, -948.30), false) -- Red block that falls with hole in center
+		set_custom_map_trap(1255, nil, nil, Vector(-1281, -1952, -948), false) -- Red block that falls with hole in center
 	elseif (map == "zm_gasdump_b4") then
-		set_custom_map_trap( 2452, 0.02, 2096, nil, false) -- Tornado
+		set_custom_map_trap(2452, 0.02, 2096, nil, false) -- Tornado
+	elseif (map == "zm_backwoods_b4") then
+		-- Trigger is in not the best spot for these trap doors
+		set_custom_map_trap(2015, nil, nil, Vector(-2290, 2322, -231), false) -- First trap door
+		set_custom_map_trap(2016, nil, nil, Vector(-3057, 2326, -227), false) -- Second trap door
+		set_custom_map_trap(2350, nil, nil, Vector(-5731, 7199, -229), false) -- Third trap door
+		set_custom_map_trap(2367, nil, nil, Vector(-7438, 7187, -229), false) -- Fourth trap door
+		set_custom_map_trap(1260, nil, nil, Vector(-4352, 7494, -23), false) -- Tall Building
+	elseif (map == "zm_basin_b3fix") then
+		set_custom_map_trap(2656, nil, nil, Vector(-3599, 22, 303), false) -- Kill AFKs
+		set_custom_map_trap(2353, nil, nil, Vector(-722, -2255, -167), false) -- First gate
+		set_custom_map_trap(2689, nil, nil, Vector(1794, -2143, 126), false) -- Hanging timber outside hanger door
+		set_custom_map_trap(2342, nil, nil, Vector(1768, -3061, 146), false) -- Drop building overhanging roof
+		set_custom_map_trap(2367, nil, nil, Vector(2861, -2513, 142), false) -- Second Gate
+		set_custom_map_trap(2710, nil, nil, Vector(3576, 1920, 173), false) -- Motor Bomb
+		set_custom_map_trap(2585, nil, nil, Vector(2096, 3466, 151), false) -- Trailer cannon explosion
+		set_custom_map_trap(2608, nil, nil, Vector(2096, 3466, 151), false) -- Drop Trailer on railing
+		set_custom_map_trap(2518, nil, nil, Vector(-735, 4540, 156), false) -- Open building near boat
+	elseif (map == "zm_diamondshoals_a2") then
+		set_custom_map_trap(2154, nil, nil, Vector(608, 3188, -1007), false) -- FLoating explosive barrel boat
+		set_custom_map_trap(2163, nil, nil, Vector(1418, 5481, -872), false) -- Crab Sign
+	elseif (map == "zm_bluevelvet_rc1") then
+		set_custom_map_trap(2149, nil, nil, Vector(-2033, 1913, -152), false) -- Auto Opening door
+		set_custom_map_trap(2187, nil, nil, nil, false) -- Door
+		set_custom_map_trap(1825, nil, nil, nil, false) -- Same door
+		set_custom_map_trap(3373, nil, nil, Vector(-6015, 847, -553), false) -- spawn immolator near door to cut at trains
+		set_custom_map_trap(3396, nil, nil, Vector(-3227, 983, -542), false) -- spawn banshees opposite side
 	end
 end
 
@@ -562,6 +587,7 @@ end
 -- Think hook for controlling the bot
 ----------------------------------------------------
 hook.Add( "Think", "Control_Bot", function()
+	get_creationid_within_range()
 	if (engine.ActiveGamemode() != GAMEMODE) then -- Checking if gamemode is active
 		print("Zombie Master Gamemode not active, disabling ZM AI")
 		hook.Remove( "Think", "Control_Bot" ) -- Disables the mod is not active
