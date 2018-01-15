@@ -1,3 +1,6 @@
+-- Author: Bradenm1
+-- Repo: https://github.com/Bradenm1/Zombie_Master_Bot
+
 if (SERVER) then
 
 include("botnames.lua")
@@ -10,12 +13,8 @@ local HUMANTEAM = 1
 local ZOMBIEMASTERTEAM = 2
 local SPECTATORTEAM = 3
 
--- Delays
-local SPEEDDELAY = CurTime()
-local SPAWNDELAY = CurTime()
-local COMMANDDELAY = CurTime()
-
-
+-- Vars
+local speedDelay, spawnDelay, commandDelay = 0, 0, 0
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
 local playing = true -- If the bot is currently playing
 local spawnForcing = true -- Forces players to spawn on game start
@@ -92,16 +91,15 @@ function bot_brain()
 	set_up_stats()
 	if (zmBot:Team() == ZOMBIEMASTERTEAM) then -- Checks if bot is ZM
 		-- Code for running bot should go in statement
-		if ((#team.GetPlayers(HUMANTEAM) > 0) && (CurTime() > SPEEDDELAY)) then -- Checks if there's players still playing as survivors
-			if (options.Debug) then get_creationid_within_range() end
+		if ((#team.GetPlayers(HUMANTEAM) > 0) && (CurTime() > speedDelay)) then -- Checks if there's players still playing as survivors
 			local cloestSpawnPoint = check_for_closest_spawner() -- Check cloest spawn to players
-			if ((cloestSpawnPoint != nil) && (CurTime() > SPAWNDELAY)) then spawn_zombie(cloestSpawnPoint) end -- Spawn zombie
+			if ((cloestSpawnPoint != nil) && (CurTime() > spawnDelay)) then spawn_zombie(cloestSpawnPoint) end -- Spawn zombie
 			local trapToUse, trapKey, tbKey = check_for_traps() -- Check if player is near trap
 			if (trapToUse != nil) then activate_trap(trapToUse, trapKey, tbKey) end -- Use trap
 			local zombiesToDelete = get_zombie_too_far() -- Gets zombies too far away from players
 			if (zombiesToDelete != nil) then kill_all_zombies(zombiesToDelete) end -- Kills given zombies
-			if (CurTime() > COMMANDDELAY) then move_zombie_to_player() end -- Move random zombie towards random player if non in view of that zombie
-			SPEEDDELAY = CurTime() + options.BotSpeed -- Bot delay
+			if (CurTime() > commandDelay) then move_zombie_to_player() end -- Move random zombie towards random player if non in view of that zombie
+			speedDelay = CurTime() + options.BotSpeed -- Bot delay
 		end
 	else -- Bot is not ZM or round is over, etc..
 		if (zmBot:Team() == HUMANTEAM) then if (zmBot:Alive()) then zmBot:Kill() end end -- Checks if bot is a survivor, if so kills himself
@@ -171,7 +169,7 @@ end
 function check_for_traps()
 	for _, ent in RandomPairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
 		if (IsValid(ent)) then -- Check if trap is vaild and not used
-			local radius, chance, visible
+			local radius, chance, visible = 128, 0.5, true
 			if (options.DynamicTraps) then radius = options.TrapUsageRadius else  -- Checks if dynamic is true
 				for __, keyFromTrapTb in pairs(options.Traps) do -- Checks both keys to find the trap in the traps table that's being checked
 					if (ent:MapCreationID() == keyFromTrapTb.Trap) then -- If it's the same trap being checked as the one in the traps table
@@ -312,7 +310,7 @@ function spawn_zombie(ent)
 		zm_set_view(ent:GetPos())
 		zmBot:Say("Attempted to spawn: " .. zb) 
 	end
-	SPAWNDELAY = CurTime() + options.ZombieSpawnDelay
+	spawnDelay = CurTime() + options.ZombieSpawnDelay
 end
 
 ----------------------------------------------------
@@ -374,7 +372,7 @@ function move_zombie_to_player()
 	local zb = table.Random(ents.FindByClass("npc_*")) -- Get random zombie
 	if ((IsValid(player)) && (IsValid(zb)) && (check_zombie_class(zb))) then zb:ForceGo(player:GetPos()) end
 	options.LastZombieCommanded = zb
-	COMMANDDELAY = CurTime() + options.CommandDelay
+	commandDelay = CurTime() + options.CommandDelay
 end
 
 
@@ -509,7 +507,20 @@ function set_custom_traps_for_map()
 	local map = game.GetMap()
 	-- Using function calls within function call paramaters to save space, as set_custom_traps_for_map function could grow very large.
 	if (map == "zm_asdf_b5") then -- Apply custom settings for map zm_deathrun_a7
-		set_custom_map_trap(1255, nil, nil, Vector(-1281, -1952, -948), false) -- Red block that falls with hole in center
+		set_custom_map_trap(1255, nil, nil, Vector(-1281, -1952, -948), true) -- Red block that falls with hole in center
+		local tp = Vector(-734, -1215, -911)
+		set_custom_map_trap(2437, nil, nil, tp, true) -- tp
+		set_custom_map_trap(2220, nil, nil, tp, true) -- tp
+		set_custom_map_trap(2215, nil, nil, tp, true) -- tp
+		local path = Vector(731, -2085, -834)
+		set_custom_map_trap(1264, nil, nil, path, true) -- path
+		set_custom_map_trap(1265, nil, nil, path, true) -- path
+		set_custom_map_trap(1266, nil, nil, path, true) -- path
+		local laser = Vector(22, -189, -663)
+		set_custom_map_trap(2379, nil, nil, laser, true) -- laser
+		set_custom_map_trap(2393, nil, nil, laser, true) -- laser
+		set_custom_map_trap(2393, nil, nil, laser, true) -- laser
+		set_custom_map_trap(1275, nil, nil, Vector(605, -1462, -175), true) -- red wall
 	elseif (map == "zm_gasdump_b4") then
 		set_custom_map_trap(2452, 0.02, 2096, nil, false) -- Tornado
 	elseif (map == "zm_backwoods_b4") then
@@ -520,14 +531,14 @@ function set_custom_traps_for_map()
 		set_custom_map_trap(2367, nil, nil, Vector(-7438, 7187, -229), false) -- Fourth trap door
 		set_custom_map_trap(1260, nil, nil, Vector(-4352, 7494, -23), false) -- Tall Building
 	elseif (map == "zm_basin_b3fix") then
-		set_custom_map_trap(2656, nil, nil, Vector(-3599, 22, 303), false) -- Kill AFKs
+		set_custom_map_trap(2656, nil, nil, Vector(-3599, 22, 303), true) -- Kill AFKs
 		set_custom_map_trap(2353, nil, nil, Vector(-722, -2255, -167), false) -- First gate
 		set_custom_map_trap(2689, nil, nil, Vector(1794, -2143, 126), false) -- Hanging timber outside hanger door
 		set_custom_map_trap(2342, nil, nil, Vector(1768, -3061, 146), false) -- Drop building overhanging roof
 		set_custom_map_trap(2367, nil, nil, Vector(2861, -2513, 142), false) -- Second Gate
 		set_custom_map_trap(2710, nil, nil, Vector(3576, 1920, 173), false) -- Motor Bomb
 		set_custom_map_trap(2585, nil, nil, Vector(2096, 3466, 151), false) -- Trailer cannon explosion
-		set_custom_map_trap(2608, nil, nil, Vector(-799, 4488, 105), false) -- Drop Trailer on railing
+		set_custom_map_trap(2608, nil, nil, Vector(-799, 4488, 105), false) -- Drop Trailer over railing
 		set_custom_map_trap(2518, nil, nil, Vector(-2546, 2752, 105), false) -- Open building near boat
 	elseif (map == "zm_diamondshoals_a2") then
 		set_custom_map_trap(2154, nil, nil, Vector(608, 3188, -1007), false) -- FLoating explosive barrel boat
