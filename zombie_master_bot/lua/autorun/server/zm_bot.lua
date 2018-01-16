@@ -17,8 +17,6 @@ local DAMAGEZOMBIEMULTIPLIER = 1.25
 -- Vars
 local speedDelay, spawnDelay, commandDelay = 0, 0, 0 -- Delays
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
-local playing = true -- If the bot is currently playing
-local spawnForcing = true -- Forces players to spawn on game start
 
 -- Bot Options
 -- Chance: 0.0 never use 1.0 always use
@@ -43,6 +41,8 @@ local options = {
 	BotSpeed			= 1, -- Delay in seconds, speed of the bot as a whole
 	ZombieSpawnDelay 	= 3, -- Delay in seconds, zombie spawn delay
 	CommandDelay 		= 1, -- Delay in seconds, command zombie delay
+	Playing				= true, -- If the bot is currently playing
+	SpawnForcing		= true, -- Forces players to spawn on game start
 	DynamicTraps		= false, -- If traps chances and actiavtion radius change during gameplay
 								 -- True means it changes on the fly each time a trap is used
 								 -- False means it does not and all traps have set chances and ranges from the start of the round
@@ -575,7 +575,7 @@ local function zm_brain()
 		end
 	else -- Bot is not ZM or round is over, etc..
 		if (zmBot:Team() == HUMANTEAM) then if (zmBot:Alive()) then zmBot:Kill() end end -- Checks if bot is a survivor, if so kills himself
-		gamemode.Call("SetPlayerToZombieMaster", zmBot)
+		--gamemode.Call("SetPlayerToZombieMaster", zmBot)
 		zmBot:SetZMPoints(10000)
 		options.SetUp = true
 	end
@@ -591,7 +591,6 @@ local function create_zm_bot()
 		local bot = player.CreateNextBot( names[ math.random( #names ) ]) -- Create a bot given the name list
 		bot.IsZMBot = true -- Set bot as ZM bot
 		zmBot = bot -- Assign bot as global for usage
-		if (spawnForcing) then gamemode.Call("EndRound") end
 	else print( "Cannot create bot. Do you have free slots or are you in Single Player?" ) end -- This prints to console if the bot cannot spawn
 end
 
@@ -600,16 +599,33 @@ end
 -- Think hook for controlling the bot
 ----------------------------------------------------
 hook.Add( "Think", "Control_Bot", function()
-	get_creationid_within_range()
+	--get_creationid_within_range()
 	if (engine.ActiveGamemode() != GAMEMODE) then -- Checking if gamemode is active
 		print("Zombie Master Gamemode not active, disabling ZM AI")
 		hook.Remove( "Think", "Control_Bot" ) -- Disables the mod is not active
 	else
-		if (playing) then
-			if ((get_amount_zm_bots() == 0) && (#player.GetAll() > 0)) then create_zm_bot() end -- Check if there's already a bot on the server and waits for players to join first
-			if (zmBot != nil) then zm_brain() end -- Checks if the bot was created, runs the bot if so
-		end
+        if ((options.Playing) && (zmBot != nil)) then zm_brain() end -- Checks if the bot was created, runs the bot if so
 	end
+end )
+
+----------------------------------------------------   
+-- InitPostClient
+-- InitPostClient hook for detecting player join
+----------------------------------------------------
+hook.Add( "InitPostClient", "Bot_Creation", function()
+    if (options.Playing) then
+        if (get_amount_zm_bots() == 0) then create_zm_bot() end -- Check if there's already a bot on the server and waits for players to join first
+    end
+end )
+
+----------------------------------------------------   
+-- GetZombieMasterVolunteer
+-- GetZombieMasterVolunteer hook for making it where only the bot is choosen
+----------------------------------------------------
+hook.Add( "GetZombieMasterVolunteer", "Bot_Selection", function()
+    if ((options.Playing) && (zmBot != nil)) then
+        return zmBot -- Force the zombie master selection to the bot
+    end
 end )
 
 ----------------------------------------------------	
@@ -684,11 +700,11 @@ end )
 
 -- Toggle Force Start
 concommand.Add( "zm_ai_enable_force_start", function(ply, cmd, args)
-	if (!spawnForcing) then 
-		spawnForcing = true 
+	if (!options.SpawnForcing) then 
+		options.SpawnForcing = true 
 		print("Force Start Enabled")
 	else 
-		spawnForcing = false 
+		options.SpawnForcing = false 
 		print("Force Start Disabled")
 	end
 end )
@@ -707,13 +723,13 @@ end )
 
 -- Enabled the AI
 concommand.Add( "zm_ai_enabled", function(ply, cmd, args)
-	if (!playing) then 
+	if (!options.Playing) then 
 		if ((get_amount_zm_bots() == 0) && (#player.GetAll() > 0)) then create_zm_bot() end -- Rejoins the bot
-		playing = true
+		options.Playing = true
 		print("AI Enabled")
 	else 
 		zmBot:Kick("AI Terminated") -- Kicks the bot
-		playing = false 
+		options.Playing = false 
 		print("AI Disabled")
 	end
 end )
