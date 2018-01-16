@@ -22,7 +22,6 @@ local zmBot = nil -- Where the player bot is stored, this is more effiencent sin
 -- Chance: 0.0 never use 1.0 always use
 -- Radius/Range: Units
 -- Theses are the default stats
--- Reset each round
 local options = {
 	MaxZombies 			= 60, -- Max zombies this changes depending on the players
 	SpawnRadius			= 3000, -- Max spawn distance
@@ -280,7 +279,7 @@ end
 local function spawn_zombie(ent)
 	if (options.SpawnZombieChance < math.Rand(0, 1)) then return nil end
 	local zb = pick_zombie()
-	-- Attempt to spawn another zombie is failed
+	-- Attempt to spawn another zombie if failed
 	--[[local allowed = true
 	local attempts = 0
 	while (allowed) do
@@ -349,7 +348,7 @@ end
 -- @param arg1 Integer: CreationID of the entity
 -- @param arg2 Float: Trap usage chance
 -- @param arg3 Integer: Trap usage radius
--- @param arg4 Integer: Vector position for trap
+-- @param arg4 Table: Vector(s) position for trap or position of trigger box
 -- @param arg5 Boolean: If a player needs to be in line of sight
 -- @return Boolean: If CreationID exists and settings were applied
 ----------------------------------------------------
@@ -382,64 +381,89 @@ end
 local function set_map_trap_settings()
 	local map = game.GetMap()
 	if (map == "zm_asdf_b5") then -- Apply custom settings for map zm_deathrun_a7
-		set_trap_settings(1255, nil, nil, Vector(-1281, -1952, -948), true) -- Red block that falls with hole in center
-		local tp = Vector(-734, -1215, -911)
+		set_trap_settings(1255, nil, nil, {Vector(-1281, -1952, -948)}, true) -- Red block that falls with hole in center
+		local tp = {Vector(-734, -1215, -911)}
 		set_trap_settings(2437, nil, nil, tp, true) -- tp
 		set_trap_settings(2220, nil, nil, tp, true) -- tp
 		set_trap_settings(2215, nil, nil, tp, true) -- tp
-		local path = Vector(731, -2085, -834)
+		local path = {Vector(731, -2085, -834)}
 		set_trap_settings(1264, nil, nil, path, true) -- path
 		set_trap_settings(1265, nil, nil, path, true) -- path
 		set_trap_settings(1266, nil, nil, path, true) -- path
-		local laser = Vector(22, -189, -663)
+		local laser = {Vector(22, -189, -663)}
 		set_trap_settings(2379, nil, nil, laser, true) -- laser
 		set_trap_settings(2393, nil, nil, laser, true) -- laser
 		set_trap_settings(2393, nil, nil, laser, true) -- laser
-		set_trap_settings(1275, nil, nil, Vector(605, -1462, -175), true) -- red wall
+		set_trap_settings(1275, nil, nil, {Vector(605, -1462, -175)}, true) -- red wall
 	elseif (map == "zm_gasdump_b4") then
 		set_trap_settings(2452, 0.02, 2096, nil, false) -- Tornado
 	elseif (map == "zm_backwoods_b4") then
 		-- Trigger is in not the best spot for these trap doors
-		set_trap_settings(2015, nil, nil, Vector(-2290, 2322, -231), true) -- First trap door
-		set_trap_settings(2016, nil, nil, Vector(-3057, 2326, -227), true) -- Second trap door
-		set_trap_settings(2350, nil, nil, Vector(-5731, 7199, -229), true) -- Third trap door
-		set_trap_settings(2367, nil, nil, Vector(-7438, 7187, -229), true) -- Fourth trap door
-		set_trap_settings(1260, nil, nil, Vector(-4352, 7494, -23), false) -- Tall Building
+		set_trap_settings(2015, nil, nil, {Vector(-2290, 2322, -231)}, true) -- First trap door
+		set_trap_settings(2016, nil, nil, {Vector(-3057, 2326, -227)}, true) -- Second trap door
+		set_trap_settings(2350, nil, nil, {Vector(-5731, 7199, -229)}, true) -- Third trap door
+		set_trap_settings(2367, nil, nil, {Vector(-7438, 7187, -229)}, true) -- Fourth trap door
+		set_trap_settings(1260, nil, nil, {Vector(-4352, 7494, -23)}, false) -- Tall Building
 	elseif (map == "zm_basin_b3fix") then
-		set_trap_settings(2656, nil, nil, Vector(-3599, 22, 303), true) -- Kill AFKs
-		set_trap_settings(2353, nil, nil, Vector(-722, -2255, -167), false) -- First gate
-		set_trap_settings(2689, nil, nil, Vector(1794, -2143, 126), true) -- Hanging timber outside hanger door
-		set_trap_settings(2342, nil, nil, Vector(1768, -3061, 146), true) -- Drop building overhanging roof
-		set_trap_settings(2367, nil, nil, Vector(2861, -2513, 142), false) -- Second Gate
-		set_trap_settings(2710, nil, nil, Vector(3576, 1920, 173), true) -- Motor Bomb
-		set_trap_settings(2585, nil, nil, Vector(2096, 3466, 151), true) -- Trailer cannon explosion
-		set_trap_settings(2608, nil, nil, Vector(-799, 4488, 105), true) -- Drop Trailer over railing
-		set_trap_settings(2518, nil, nil, Vector(-2546, 2752, 105), false) -- Open building near boat
+		set_trap_settings(2656, nil, nil, {Vector(-3599, 22, 303)}, true) -- Kill AFKs
+		set_trap_settings(2353, nil, nil, {Vector(-722, -2255, -167)}, false) -- First gate
+		set_trap_settings(2689, nil, nil, {Vector(1794, -2143, 126)}, true) -- Hanging timber outside hanger door
+		set_trap_settings(2342, nil, nil, {Vector(1768, -3061, 146)}, true) -- Drop building overhanging roof
+		set_trap_settings(2367, nil, nil, {Vector(2861, -2513, 142)}, false) -- Second Gate
+		set_trap_settings(2710, nil, nil, {Vector(3576, 1920, 173)}, true) -- Motor Bomb
+		set_trap_settings(2585, nil, nil, {Vector(2096, 3466, 151)}, true) -- Trailer cannon explosion
+		set_trap_settings(2608, nil, nil, {Vector(-799, 4488, 105)}, true) -- Drop Trailer over railing
+		set_trap_settings(2518, nil, nil, {Vector(-2546, 2752, 105)}, false) -- Open building near boat
 	elseif (map == "zm_diamondshoals_a2") then
-		set_trap_settings(2154, nil, nil, Vector(608, 3188, -1007), false) -- FLoating explosive barrel boat
-		set_trap_settings(2163, nil, nil, Vector(1418, 5481, -872), true) -- Crab Sign
+		set_trap_settings(2154, nil, nil, {Vector(608, 3188, -1007)}, false) -- FLoating explosive barrel boat
+		set_trap_settings(2163, nil, nil, {Vector(1418, 5481, -872)}, true) -- Crab Sign
 	elseif (map == "zm_bluevelvet_rc1") then
-		set_trap_settings(2149, nil, nil, Vector(-2033, 1913, -152), false) -- Auto Opening door
+		set_trap_settings(2149, nil, nil, {Vector(-2033, 1913, -152)}, false) -- Auto Opening door
 		set_trap_settings(2187, nil, nil, nil, false) -- Door
 		set_trap_settings(1825, nil, nil, nil, false) -- Same door
-		set_trap_settings(3373, nil, nil, Vector(-6015, 847, -553), false) -- spawn immolator near door to cut at trains
-		set_trap_settings(3396, nil, nil, Vector(-3227, 983, -542), false) -- spawn banshees opposite side
+		set_trap_settings(3373, nil, nil, {Vector(-6015, 847, -553)}, false) -- Spawn immolator near door to cut at trains
+		set_trap_settings(3396, nil, nil, {Vector(-3227, 983, -542)}, false) -- Spawn banshees opposite side
 	elseif (map == "zm_countrytrain_b4") then
-		set_trap_settings(2997, nil, nil, Vector(-667, 1517, 63), false) -- Dumb rock
-		set_trap_settings(3244, nil, nil, Vector(907, -503, 46), false) -- Second falling gate
-		set_trap_settings(3025, nil, nil, Vector(27, 2492, 46), false) -- Throw rocks onto train tracks
-		set_trap_settings(3248, nil, nil, Vector(2805, 1149, 25), false) -- First falling gate
-		set_trap_settings(1671, nil, nil, Vector(2849, -597, 37), true) -- Send banshee into shed roof window
-		set_trap_settings(3288, nil, nil, Vector(1512, 577, 32), false) -- Spawn two hulks
-		set_trap_settings(2498, nil, nil, Vector(2126, -75, 51), false) -- Spawn immolator
-		set_trap_settings(3208, nil, nil, Vector(-1879, 2111, 50), false) -- Spawn banshee onto of spawn building
-		set_trap_settings(3008, nil, nil, Vector(598, 37, 114), false) -- Falling rocks at second gate
-		set_trap_settings(2008, nil, nil, Vector(-563, -1011, 51), false) -- Raise 2 immolators at gas station
-		set_trap_settings(2995, nil, nil, Vector(-1146, 368, 59), false) -- Falling rocks on path
+		set_trap_settings(2997, nil, nil, {Vector(-667, 1517, 63)}, false) -- Dumb rock
+		set_trap_settings(3244, nil, nil, {Vector(907, -503, 46)}, false) -- Second falling gate
+		set_trap_settings(3025, nil, nil, {Vector(27, 2492, 46)}, false) -- Throw rocks onto train tracks
+		set_trap_settings(3248, nil, nil, {Vector(2805, 1149, 25)}, false) -- First falling gate
+		set_trap_settings(1671, nil, nil, {Vector(2849, -597, 37)}, true) -- Send banshee into shed roof window
+		set_trap_settings(3288, nil, nil, {Vector(1512, 577, 32)}, false) -- Spawn two hulks
+		set_trap_settings(2498, nil, nil, {Vector(2126, -75, 51)}, false) -- Spawn immolator
+		set_trap_settings(3208, nil, nil, {Vector(-1879, 2111, 50)}, false) -- Spawn banshee onto of spawn building
+		set_trap_settings(3008, nil, nil, {Vector(598, 37, 114)}, false) -- Falling rocks at second gate
+		set_trap_settings(2008, nil, nil, {Vector(-563, -1011, 51)}, false) -- Raise 2 immolators at gas station
+		set_trap_settings(2995, nil, nil, {Vector(-1146, 368, 59)}, false) -- Falling rocks on path
 	elseif (map == "zm_forestroad") then
-		set_trap_settings(2047, nil, nil, Vector(2041, 1275, 267), true) -- Zap shed
-		set_trap_settings(2254, nil, nil, Vector(4367, -1463, 86), false) -- Oil fire
-		set_trap_settings(2049, nil, nil, Vector(4742, -2415, 64), true) -- Drop giant rock
+		set_trap_settings(2047, nil, nil, {Vector(2041, 1275, 267)}, true) -- Zap shed
+		set_trap_settings(2254, nil, nil, {Vector(4367, -1463, 86)}, false) -- Oil fire
+		set_trap_settings(2049, nil, nil, {Vector(4742, -2415, 64)}, true) -- Drop giant rock
+	elseif (map == "zm_4dtetris_new") then
+		local slots = {}
+		local traps = {	{1237, 1246, 1320, 1338, 1354, 1370, 1388, 1436}, 
+						{1238, 1247, 1321, 1339, 1355, 1371, 1389, 1437},
+						{1239, 1248, 1322, 1340, 1356, 1372, 1390, 1438},
+						{1240, 1249, 1323, 1341, 1357, 1373, 1391, 1439},
+						{1241, 1250, 1324, 1342, 1358, 1374, 1392, 1440, 1404, 1456, 1881},
+						{1242, 1251, 1325, 1343, 1359, 1375, 1393, 1441},
+						{1243, 1252, 1326, 1344, 1358, 1376, 1394, 1442},
+						{1244, 1253, 1327, 1345, 1359, 1377, 1395, 1443},
+						{1245, 1254, 1328, 1345, 1360, 1378, 1395, 1444}
+					}
+		local firstCal, secondCal = -1024, -557
+		-- Create triggers
+		for i=1, #traps do -- Each slot
+			slots[i] = {Vector(836, firstCal, -3300), Vector(1066, secondCal, 3013)} -- Box
+			firstCal = firstCal + 200 -- Size of trigger
+			secondCal = secondCal + 250 -- Size of trigger
+		end
+		-- Put which trap belongs on what trigger
+		for i=1, #slots do -- Each slot
+			for o=1, #traps[i] do -- Each trap in the slot
+				set_trap_settings(traps[i][o], nil, nil, slots[i], true) -- Set the trap
+			end 
+		end
 	end
 end
 
@@ -473,18 +497,26 @@ end
 local function check_for_traps()
 	for _, ent in RandomPairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
 		if (IsValid(ent)) then -- Check if trap is vaild and not used
-			local radius, chance, visible = 128, 0.5, true
+			local radius, chance, visible, sphereSearch, positions = 128, 0.5, true, true, nil
 			if (options.DynamicTraps) then radius = options.TrapUsageRadius else  -- Checks if dynamic is true
 				for __, keyFromTrapTb in pairs(options.Traps) do -- Checks both keys to find the trap in the traps table that's being checked
 					if (ent:MapCreationID() == keyFromTrapTb.Trap) then -- If it's the same trap being checked as the one in the traps table
 						radius = keyFromTrapTb.TrapUsageRadius -- Get the stored radius
 						chance = keyFromTrapTb.UseTrapChance -- Get the stored chance
-						ent:SetPos(keyFromTrapTb.Position) -- Get position trap needs to be set to
-						visible = keyFromTrapTb.HasToBeVisible
+						visible = keyFromTrapTb.HasToBeVisible -- If trap has to be within sight
+						if (table.Count(keyFromTrapTb.Position) > 1) then 
+							sphereSearch = false 
+							positions = keyFromTrapTb.Position -- Gets vectors as a table
+						else 
+							ent:SetPos(keyFromTrapTb.Position[1]) -- Gets the one vector
+						end 
 					end
 				end 
 			end
-			for ___, ply in RandomPairs(ents.FindInSphere(ent:GetPos(), radius)) do -- Checks if any players within given radius of the trap
+			local searchType = nil
+			if (sphereSearch) then searchType = ents.FindInSphere(ent:GetPos(), radius) else searchType = ents.FindInBox(positions[1], positions[2]) end
+			--PrintTable(searchType)
+			for ___, ply in RandomPairs(searchType) do -- Checks if any players within given radius of the trap
 				if ((ply:IsPlayer()) && (ent:GetActive())) then -- Check if entity is player 
 					if (!ply.IsZMBot) then 
 						local canUse = true
@@ -523,7 +555,7 @@ local function set_up_all_traps()
 			Trap = ent:MapCreationID(),
 			UseTrapChance = get_chance_trap(),
 			TrapUsageRadius = get_trap_usage_radius(),
-			Position = ent:GetPos(), -- Incase we need to fake it
+			Position = {ent:GetPos()}, -- Incase we need to fake it
 			HasToBeVisible = true
 		})
 	end
@@ -583,12 +615,12 @@ end
 
 ----------------------------------------------------
 -- create_zm_bot()
--- Updates the action of the entity
+-- Spawns the AI bot
 ----------------------------------------------------
 local function create_zm_bot()
 	-- Randomly Generates a name given the botnames file
 	if ((!game.SinglePlayer()) && (#player.GetAll() < game.MaxPlayers())) then
-		local bot = player.CreateNextBot( names[ math.random( #names ) ]) -- Create a bot given the name list
+		local bot = player.CreateNextBot(names[math.random(#names)]) -- Create a bot given the name list
 		bot.IsZMBot = true -- Set bot as ZM bot
 		zmBot = bot -- Assign bot as global for usage
 	else print( "Cannot create bot. Do you have free slots or are you in Single Player?" ) end -- This prints to console if the bot cannot spawn
