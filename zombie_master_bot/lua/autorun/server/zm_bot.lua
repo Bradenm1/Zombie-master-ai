@@ -515,7 +515,6 @@ local function check_for_traps()
 			end
 			local searchType = nil
 			if (sphereSearch) then searchType = ents.FindInSphere(ent:GetPos(), radius) else searchType = ents.FindInBox(positions[1], positions[2]) end
-			--PrintTable(searchType)
 			for ___, ply in RandomPairs(searchType) do -- Checks if any players within given radius of the trap
 				if ((ply:IsPlayer()) && (ent:GetActive())) then -- Check if entity is player 
 					if (!ply.IsZMBot) then 
@@ -667,102 +666,116 @@ end )
 
 -- Bot Global Speed Delay
 concommand.Add( "zm_ai_speed", function(ply, cmd, args)
-	options.BotSpeed =  tonumber(args[1])
+	if (ply:IsAdmin()) then options.BotSpeed =  tonumber(args[1]) end
 end )
 
 -- Bot Command Delay (Commanding zombies)
 concommand.Add( "zm_ai_command_delay", function(ply, cmd, args)
-	options.CommandDelay = tonumber(args[1])
+	if (ply:IsAdmin()) then options.CommandDelay = tonumber(args[1]) end
 end )
 
 -- Bot Zombie Spawn Delay
 concommand.Add( "zm_ai_zombie_spawn_delay", function(ply, cmd, args)
-	options.ZombieSpawnDelay = tonumber(args[1])
+	if (ply:IsAdmin()) then options.ZombieSpawnDelay = tonumber(args[1]) end
 end )
 
 -- Bot Max Zombies Per Player
 concommand.Add( "zm_ai_max_zombies_per_player", function(ply, cmd, args)
-	options.ZombiesPerPlayer = tonumber(args[1])
+	if (ply:IsAdmin()) then options.ZombiesPerPlayer = tonumber(args[1]) end
 end )
 
 -- Bot Max Zombie Spawn Distance
 concommand.Add( "zm_ai_max_zombie_spawn_dis", function(ply, cmd, args)
-	options.SpawnRadius = tonumber(args[1])
+	if (ply:IsAdmin()) then options.SpawnRadius = tonumber(args[1]) end
 end )
 
 -- Bot Min Zombie Spawn Distance
 concommand.Add( "zm_ai_min_zombie_delete_dis", function(ply, cmd, args)
-	options.DeleteRadius = tonumber(args[1])
+	if (ply:IsAdmin()) then options.DeleteRadius = tonumber(args[1]) end
 end )
 
 -- Bot Min Distance To Activate Trap
 concommand.Add( "zm_ai_min_distance_to_act_trap", function(ply, cmd, args)
-	options.MinTrapRange = tonumber(args[1])
-	set_up_all_traps() -- Update traps with new number
+	if (ply:IsAdmin()) then 
+		options.MinTrapRange = tonumber(args[1])
+		set_up_all_traps() -- Update traps with new number
+	end
 end )
 
 -- Bot Max Distance To Activate Trap
 concommand.Add( "zm_ai_max_distance_to_act_trap", function(ply, cmd, args)
-	options.MaxTrapRange = tonumber(args[1])
-	set_up_all_traps() -- Update traps with new number
+	if (ply:IsAdmin()) then 
+		options.MaxTrapRange = tonumber(args[1])
+		set_up_all_traps() -- Update traps with new number
+	end
 end )
 
 -- If Traps Are Dynamic
 concommand.Add( "zm_ai_dynamic_traps", function(ply, cmd, args)
-	if (!options.DynamicTraps) then 
-		options.DynamicTraps = true 
-		print("Dynamic Enabled")
-	else 
-		options.DynamicTraps = false 
-		print("Disabled Enabled")
+	if (ply:IsAdmin()) then 
+		if (!options.DynamicTraps) then 
+			options.DynamicTraps = true 
+			print("Dynamic Enabled")
+		else 
+			options.DynamicTraps = false 
+			print("Disabled Enabled")
+		end
 	end
 end )
 
 -- Toggle Debugger
 concommand.Add( "zm_ai_debug", function(ply, cmd, args)
-	if (!options.Debug) then 
-		--if (options.View == nil) then create_zm_view() end
-		options.Debug = true 
-		print("Debug Enabled")
-	else 
-		options.Debug = false 
-		print("Debug Disabled")
+	if (ply:IsAdmin()) then 
+		if (!options.Debug) then 
+			--if (options.View == nil) then create_zm_view() end
+			options.Debug = true 
+			print("Debug Enabled")
+		else 
+			options.Debug = false 
+			print("Debug Disabled")
+		end
 	end
 end )
 
 -- Toggle Force Start
 concommand.Add( "zm_ai_enable_force_start", function(ply, cmd, args)
-	if (!options.SpawnForcing) then 
-		options.SpawnForcing = true 
-		print("Force Start Enabled")
-	else 
-		options.SpawnForcing = false 
-		print("Force Start Disabled")
+	if (ply:IsAdmin()) then 
+		if (!options.SpawnForcing) then 
+			options.SpawnForcing = true 
+			print("Force Start Enabled")
+		else 
+			options.SpawnForcing = false 
+			print("Force Start Disabled")
+		end
 	end
 end )
 
 -- Forces the round to begin
 concommand.Add( "zm_ai_force_start_round", function(ply, cmd, args)
-	gamemode.Call("EndRound")
-	zmBot:Say("Round forcefully started")
+	if (ply:IsAdmin()) then 
+		gamemode.Call("EndRound")
+		zmBot:Say("Round forcefully started")
+	end
 end)
 
 -- Move Player To Last spawned Zombie Spawn
 concommand.Add( "zm_ai_move_ply_to_last_spawn", function(ply, cmd, args)
-	if (options.LastSpawned != nil) then ply:SetPos(options.LastSpawned:GetPos()) end
+	if ((options.LastSpawned != nil) && (ply:IsAdmin())) then ply:SetPos(options.LastSpawned:GetPos()) end
 end )
 
 
 -- Enabled the AI
 concommand.Add( "zm_ai_enabled", function(ply, cmd, args)
-	if (!options.Playing) then 
-		if ((get_amount_zm_bots() == 0) && (#player.GetAll() > 0)) then create_zm_bot() end -- Rejoins the bot
-		options.Playing = true
-		print("AI Enabled")
-	else 
-		zmBot:Kick("AI Terminated") -- Kicks the bot
-		options.Playing = false 
-		print("AI Disabled")
+	if (ply:IsAdmin()) then 
+		if (!options.Playing) then 
+			if ((get_amount_zm_bots() == 0) && (#player.GetAll() > 0)) then create_zm_bot() end -- Rejoins the bot
+			options.Playing = true
+			print("AI Enabled")
+		else 
+			zmBot:Kick("AI Terminated") -- Kicks the bot
+			options.Playing = false 
+			print("AI Disabled")
+		end
 	end
 end )
 
