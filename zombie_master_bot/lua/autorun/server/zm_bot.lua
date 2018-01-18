@@ -15,7 +15,7 @@ local SPECTATORTEAM = 3
 local DAMAGEZOMBIEMULTIPLIER = 1.25
 
 -- Vars
-local speedDelay, spawnDelay, commandDelay, killZombieDelay, spawnRangeDelay = 0, 0, 0, 0, 0 -- Delays
+local speedDelay, spawnDelay, commandDelay, killZombieDelay, spawnRangeDelay, explosionDelay = 0, 0, 0, 0, 0, 0 -- Delays
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
 
 -- Bot Options
@@ -38,11 +38,17 @@ local options = {
 	MinSpawnChance		= 0.03, -- Min zombie spawn chance
 	MaxSpawnChance		= 1, -- Max zombie spawn chance
 	IncressSpawnRange	= 300, -- How much it should incress the range by
+	UseExplosionChance	= 0.1, -- Min explosion chance
+	MinExplosionChance	= -0.01, -- Max explosion chance
+	MaxExplosionChance	= 0.03, -- Use explosion chance
+	ExplosionSearchRange= 32, -- Range from player it searches
+	ExplosionUseAmount	= 5, -- Number of Entites needed in range
 	BotSpeed			= 1, -- Delay in seconds, speed of the bot as a whole
 	ZombieSpawnDelay 	= 3, -- Delay in seconds, zombie spawn delay
 	CommandDelay 		= 1, -- Delay in seconds, command zombie delay
 	KillZombieDelay		= 1, -- Delay in seconds, killing zombies
 	SpawnRangeDelay		= 10, -- Delay in seconds, incressing range if no zombies
+	ExplosionDelay		= 10, -- Delay in seconds
 	Playing				= true, -- If the bot is currently playing
 	SpawnForcing		= true, -- Forces players to spawn on game start
 								 -- True means it changes on the fly each time a trap is used
@@ -68,9 +74,6 @@ local function get_amount_zm_bots()
 	end
 	return amount
 end
-
--- Checks if bot is already in the game used for debugging
--- if (get_amount_zm_bots() == 0) then zmBot = nil end
 
 ----------------------------------------------------
 -- get_last_zombie_commanded()
@@ -117,6 +120,16 @@ end
 ----------------------------------------------------
 local function get_zombie_chance()
 	local chance = math.random(0, options.MaxZombieTypeChance) % get_zombie_type_amount()
+	return chance
+end
+
+----------------------------------------------------
+-- get_chance_explosion()
+-- Returns a random decimnal number
+-- @return chance Float: chance
+----------------------------------------------------
+local function get_chance_explosion()
+	local chance = math.Rand(options.MinExplosionChance, options.MaxExplosionChance) -- Negative means trap won't get used
 	return chance
 end
 
@@ -478,6 +491,21 @@ local function set_map_trap_settings()
 end
 
 ----------------------------------------------------
+-- create_explosion()
+-- Causes a explosion forces props away
+-- @param location Vector: Location where explosion will appear
+----------------------------------------------------
+local function create_explosion(location)
+	local ent = ents.Create("env_delayed_physexplosion")
+	if IsValid(ent) then
+		ent:Spawn()
+		ent:SetPos(location)
+		ent:Activate()
+		ent:DelayedExplode(ZM_PHYSEXP_DELAY)
+	end
+end
+
+----------------------------------------------------
 -- activate_trap()
 -- Triggers a trap
 -- @param arg1 Entity: The trap to be activated
@@ -569,6 +597,7 @@ local function set_zm_settings()
 		set_up_all_traps() -- Sets up the traps in the map
 		set_map_trap_settings() -- Has to be after
 		zmBot:SetZMPoints(10000)
+		options.UseExplosionChance = get_chance_explosion()
 		options.Debug = false
 		options.View = nil
 		options.SetUp = false
@@ -586,6 +615,22 @@ local function using_spawner()
 	local cloestSpawnPoint = check_for_closest_spawner() -- Check cloest spawn to players
 	if (cloestSpawnPoint) then spawn_zombie(cloestSpawnPoint) end -- Spawn zombie
 	spawnDelay = CurTime() + options.ZombieSpawnDelay
+end
+
+----------------------------------------------------
+-- using_explosion()
+-- Controls the bot using the explosion
+----------------------------------------------------
+local function using_explosion()
+	if ((CurTime() < explosionDelay) || (options.UseExplosionChance < math.Rand(0, 1))) then return end
+	for ___, ply in RandomPairs(team.GetPlayers(HUMANTEAM)) do
+		local amount = #ents.FindInSphere(ply:GetPos(), options.ExplosionSearchRange) -- Get all amount of ents within range of player
+		if (amount > options.ExplosionUseAmount) then
+			create_explosion(ply:GetPos()) -- Create explosion at player
+			options.UseExplosionChance = get_chance_explosion()
+			explosionDelay = CurTime() + options.ExplosionDelay
+		end
+	end
 end
 
 ----------------------------------------------------
@@ -658,10 +703,12 @@ local function zm_brain()
 		-- Functions that will be effected by bot speed go below if realtime go above
 		if (CurTime() < speedDelay) then return end
 		set_zm_settings() -- Set all the settings
-		using_spawner() -- Function which includes functionally using a spawner
-		using_trap() -- Function which includes functionally for traps
-		deleting_zombies() -- Function which includes functionally for deleting zombies
-		command_zombie() -- Function which includes functionally commanding a zombie
+		using_spawner() -- Function which includes functionality using a spawner
+		using_trap() -- Function which includes functionality for traps
+		using_explosion() -- Function which includes functionality explosions
+		deleting_zombies() -- Function which includes functionality for deleting zombies
+		command_zombie() -- Function which includes functionality commanding a zombie
+		--create_explosion(team.GetPlayers(HUMANTEAM)[1]:GetPos())
 		speedDelay = CurTime() + options.BotSpeed -- Bot delay
 	else -- Bot is not ZM or round is over, etc..
 		if (zmBot:Team() == HUMANTEAM) then if (zmBot:Alive()) then zmBot:Kill() end end -- Checks if bot is a survivor, if so kills himself
