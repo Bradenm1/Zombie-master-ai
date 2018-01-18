@@ -15,7 +15,7 @@ local SPECTATORTEAM = 3
 local DAMAGEZOMBIEMULTIPLIER = 1.25
 
 -- Vars
-local speedDelay, spawnDelay, commandDelay, killZombieDelay = 0, 0, 0, 0 -- Delays
+local speedDelay, spawnDelay, commandDelay, killZombieDelay, spawnRangeDelay = 0, 0, 0, 0, 0 -- Delays
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
 
 -- Bot Options
@@ -37,10 +37,12 @@ local options = {
 	MaxZombieTypeChance	= 10, -- Type of zombie to spawn chance
 	MinSpawnChance		= 0.03, -- Min zombie spawn chance
 	MaxSpawnChance		= 1, -- Max zombie spawn chance
+	IncressSpawnRange	= 300, -- How much it should incress the range by
 	BotSpeed			= 1, -- Delay in seconds, speed of the bot as a whole
 	ZombieSpawnDelay 	= 3, -- Delay in seconds, zombie spawn delay
 	CommandDelay 		= 1, -- Delay in seconds, command zombie delay
 	KillZombieDelay		= 1, -- Delay in seconds, killing zombies
+	SpawnRangeDelay		= 10, -- Delay in seconds, incressing range if no zombies
 	Playing				= true, -- If the bot is currently playing
 	SpawnForcing		= true, -- Forces players to spawn on game start
 								 -- True means it changes on the fly each time a trap is used
@@ -155,6 +157,16 @@ end
 ----------------------------------------------------
 local function get_last_trap_used()
 	return options.LastTrapUsed
+end
+
+----------------------------------------------------
+-- debug_show_stats()
+-- Shows stats of bot
+----------------------------------------------------
+local function debug_show_stats()
+	zmBot:Say("Use Trap Chance: " .. options.UseTrapChance)
+	zmBot:Say("Spawn Zombie Chance: " .. options.SpawnZombieChance)
+	zmBot:Say("Trap Usage Radius: " .. options.TrapUsageRadius)
 end
 
 ----------------------------------------------------
@@ -474,8 +486,8 @@ end
 ----------------------------------------------------
 local function activate_trap(ent)
 	ent:Trigger(zmBot)
-	options.LastTrapUsed = ent
 	zmBot:TakeZMPoints(ent:GetCost())
+	options.LastTrapUsed = ent
 	if (options.Debug) then zmBot:Say("Trap activated.") end -- Debugging
 end
 
@@ -530,16 +542,6 @@ local function check_for_traps()
 end
 
 ----------------------------------------------------
--- debug_show_stats()
--- Shows stats of bot
-----------------------------------------------------
-local function debug_show_stats()
-	zmBot:Say("Use Trap Chance: " .. options.UseTrapChance)
-	zmBot:Say("Spawn Zombie Chance: " .. options.SpawnZombieChance)
-	zmBot:Say("Trap Usage Radius: " .. options.TrapUsageRadius)
-end
-
-----------------------------------------------------
 -- set_up_all_traps()
 -- Sets up all the traps from the get go with stats
 ----------------------------------------------------
@@ -566,7 +568,6 @@ local function set_zm_settings()
 		set_map_settings() -- Set if certain map is on
 		set_up_all_traps() -- Sets up the traps in the map
 		set_map_trap_settings() -- Has to be after
-		SetGlobalBool("zm_round_active", true) -- Fixes hud issue
 		zmBot:SetZMPoints(10000)
 		options.Debug = false
 		options.View = nil
@@ -604,8 +605,8 @@ end
 ----------------------------------------------------
 local function using_trap()
 	local trap = check_for_traps() -- Check if player is near trap
-	if (!trap) then return end
-	local canUse = can_use_trap(trap)
+	if (!trap) then return end -- Checks if a trap was found
+	local canUse = can_use_trap(trap) -- Checks if the trap can be used
 	if (canUse) then activate_trap(trap) end
 end
 
@@ -631,14 +632,32 @@ local function command_zombie()
 end
 
 ----------------------------------------------------
+-- incress_spawn_range()
+-- Controls the bot spawning and deletion range
+-- Currently not used
+----------------------------------------------------
+local function incress_spawn_range()
+	if (CurTime() < spawnRangeDelay) then return end
+	local zombiePopu = get_zombie_population()
+	if (zombiePopu == 0) then 
+		local range = options.SpawnRadius + options.IncressSpawnRange
+		options.SpawnRadius = range
+		options.DeleteRadius = range
+		if (options.Debug) then zmBot:Say("No zombies spawned... Incressing range to: " .. range) end
+	end
+	spawnRangeDelay = CurTime() + options.SpawnRangeDelay
+end
+
+----------------------------------------------------
 -- zm_brain()
 -- Main Entry point of bot
 ----------------------------------------------------
 local function zm_brain()
-	set_zm_settings()
 	if (zmBot:Team() == ZOMBIEMASTERTEAM) then -- Checks if bot is ZM
 		-- Code that should run while bot is playing goes here
+		-- Functions that will be effected by bot speed go below if realtime go above
 		if (CurTime() < speedDelay) then return end
+		set_zm_settings() -- Set all the settings
 		using_spawner() -- Function which includes functionally using a spawner
 		using_trap() -- Function which includes functionally for traps
 		deleting_zombies() -- Function which includes functionally for deleting zombies
@@ -655,7 +674,6 @@ end
 -- Spawns the AI bot
 ----------------------------------------------------
 local function create_zm_bot()
-	-- Randomly Generates a name given the botnames file
 	if ((!game.SinglePlayer()) && (#player.GetAll() < game.MaxPlayers())) then
 		local bot = player.CreateNextBot(names[math.random(#names)]) -- Create a bot given the name list
 		bot.IsZMBot = true -- Set bot as ZM bot
