@@ -40,15 +40,15 @@ local options = {
 	IncressSpawnRange	= 300, -- How much it should incress the range by
 	UseExplosionChance	= 0.1, -- Min explosion chance
 	MinExplosionChance	= -0.01, -- Max explosion chance
-	MaxExplosionChance	= 0.03, -- Use explosion chance
+	MaxExplosionChance	= 0.01, -- Use explosion chance
 	ExplosionSearchRange= 32, -- Range from player it searches
-	ExplosionUseAmount	= 5, -- Number of Entites needed in range
+	ExplosionUseAmount	= 8, -- Number of Entites needed in range
 	BotSpeed			= 1, -- Delay in seconds, speed of the bot as a whole
 	ZombieSpawnDelay 	= 3, -- Delay in seconds, zombie spawn delay
 	CommandDelay 		= 1, -- Delay in seconds, command zombie delay
 	KillZombieDelay		= 1, -- Delay in seconds, killing zombies
 	SpawnRangeDelay		= 10, -- Delay in seconds, incressing range if no zombies
-	ExplosionDelay		= 10, -- Delay in seconds
+	ExplosionDelay		= 35, -- Delay in seconds
 	Playing				= true, -- If the bot is currently playing
 	SpawnForcing		= true, -- Forces players to spawn on game start
 								 -- True means it changes on the fly each time a trap is used
@@ -850,21 +850,25 @@ end)
 
 -- Move Player To Last spawned Zombie Spawn
 concommand.Add( "zm_ai_move_ply_to_last_spawn", function(ply, cmd, args)
-	if ((options.LastSpawned != nil) && (ply:IsAdmin())) then ply:SetPos(options.LastSpawned:GetPos()) end
+	if ((options.LastSpawned) && (ply:IsAdmin())) then ply:SetPos(options.LastSpawned:GetPos()) end
 end )
 
 
 -- Enabled the AI
 concommand.Add( "zm_ai_enabled", function(ply, cmd, args)
 	if (ply:IsAdmin()) then 
-		if (!options.Playing) then 
-			if ((get_amount_zm_bots() == 0) && (#player.GetAll() > 0)) then create_zm_bot() end -- Rejoins the bot
-			options.Playing = true
-			print("AI Enabled")
-		else 
-			zmBot:Kick("AI Terminated") -- Kicks the bot
-			options.Playing = false 
-			print("AI Disabled")
+		if (!zmBot) then -- In case an error and bot was never created in the first place
+			create_zm_bot()
+		else
+			if (!options.Playing) then 
+				if (get_amount_zm_bots() == 0) then create_zm_bot() end -- Rejoins the bot
+				options.Playing = true
+				print("AI Enabled")
+			else 
+				zmBot:Kick("AI Terminated") -- Kicks the bot
+				options.Playing = false 
+				print("AI Disabled")
+			end
 		end
 	end
 end )
