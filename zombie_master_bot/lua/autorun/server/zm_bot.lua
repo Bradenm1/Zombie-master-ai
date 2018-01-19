@@ -508,9 +508,7 @@ end
 ----------------------------------------------------
 -- activate_trap()
 -- Triggers a trap
--- @param arg1 Entity: The trap to be activated
--- @param arg2 Float: Chance for the trap to be used -- Only passed in if dynamic is false
--- @param arg3 Integer: Used for removing of trap from list
+-- @param ent Entity: The trap to be activated
 ----------------------------------------------------
 local function activate_trap(ent)
 	ent:Trigger(zmBot)
