@@ -50,7 +50,6 @@ local options = {
 	SpawnRangeDelay		= 10, -- Delay in seconds, incressing range if no zombies
 	ExplosionDelay		= 35, -- Delay in seconds
 	Playing				= true, -- If the bot is currently playing
-	SpawnForcing		= true, -- Forces players to spawn on game start
 								 -- True means it changes on the fly each time a trap is used
 								 -- False means it does not and all traps have set chances and ranges from the start of the round
 	Debug 				= false, -- Used for basic debugging
@@ -59,7 +58,8 @@ local options = {
 	LastTrapUsed		= nil, -- Last trap used
 	LastZombieCommanded = nil, -- Last zombie commanded
 	View				= nil, -- Where the bot currently is
-	Traps				= {} -- Used to stored the traps at round starts if dynamic is false
+	Traps				= {}, -- Used to stored the traps at round starts if dynamic is false
+	PlayersToIgnore		= {} -- List of players to be ignored by the AI
 }
 
 ----------------------------------------------------
@@ -173,6 +173,37 @@ local function get_last_trap_used()
 end
 
 ----------------------------------------------------
+-- add_player_ignore()
+-- Adds player to a list in which AI will ignore
+-- @param ply Player: Player to be added
+----------------------------------------------------
+local function add_player_ignore(ply)
+	local playerID = ply:AccountID()
+	local exists = table.KeyFromValue(options.PlayersToIgnore, playerID)
+	if (exists) then return end
+	table.insert(options.PlayersToIgnore, ply:AccountID())
+end
+
+----------------------------------------------------
+-- remove_player_ignore()
+-- Removes a player from list in which AI will ignore
+-- @param ply Player: Player to be removed
+----------------------------------------------------
+local function remove_player_ignore(ply)
+	table.RemoveByValue(options.PlayersToIgnore, ply:AccountID())
+end
+
+----------------------------------------------------
+-- remove_player_ignore()
+-- Removes a player from list in which AI will ignore
+-- @param Boolean: If player should be ignored
+----------------------------------------------------
+local function get_player_in_ignore_table(ply)
+	local ignorePlayer = table.KeyFromValue(options.PlayersToIgnore, ply:AccountID())
+	if (ignorePlayer) then return true else return false end
+end
+
+----------------------------------------------------
 -- debug_show_stats()
 -- Shows stats of bot
 ----------------------------------------------------
@@ -202,15 +233,18 @@ local function get_zombie_too_far()
 	local zombies = {}
 	local index = 0
 	for _, ply in pairs(team.GetPlayers(HUMANTEAM)) do -- Loop through survivors
-		for __, zb in pairs(ents.FindByClass("npc_*")) do -- Loop through all zombies
-			if (check_zombie_class(zb)) then
-				if (ply:GetPos():Distance(zb:GetPos()) >= options.DeleteRadius) then -- Get distance between zombie and survivor
-					zombies[index] = zb -- Adds zombie to list if not near player
-				else zombies[index] = nil end -- Removes zombie from the list if near player
-				index = index + 1 -- Increment index
+		local ignorePlayer = get_player_in_ignore_table(ply)
+		if (!ignorePlayer) then
+			for __, zb in pairs(ents.FindByClass("npc_*")) do -- Loop through all zombies
+				if (check_zombie_class(zb)) then
+					if (ply:GetPos():Distance(zb:GetPos()) >= options.DeleteRadius) then -- Get distance between zombie and survivor
+						zombies[index] = zb -- Adds zombie to list if not near player
+					else zombies[index] = nil end -- Removes zombie from the list if near player
+					index = index + 1 -- Increment index
+				end
 			end
+			index = 0
 		end
-		index = 0
 	end
 	return zombies
 end
@@ -245,6 +279,8 @@ end
 ----------------------------------------------------
 local function move_zombie_to_player()
 	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Get Random survivor
+	local ignorePlayer = get_player_in_ignore_table(player)
+	if (ignorePlayer) then return end
 	local zb = table.Random(ents.FindByClass("npc_*")) -- Get random zombie
 	if ((IsValid(player)) && (IsValid(zb)) && (check_zombie_class(zb))) then zb:ForceGo(player:GetPos()) end
 	options.LastZombieCommanded = zb
@@ -334,6 +370,8 @@ local function check_for_closest_spawner()
 	local zombieSpawns = ents.FindByClass("info_zombiespawn")
 	if (#zombieSpawns == 0) then return nil end -- Checks if there's any spawns
 	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Picks a random player from humanteam
+	local ignorePlayer = get_player_in_ignore_table(player)
+	if (ignorePlayer) then return end
 	local entToUse = nil -- Default to nil
 	for __, spawn in RandomPairs(zombieSpawns) do -- Find cloest spawn point
 		if ((IsValid(spawn)) && (spawn:GetActive())) then
@@ -358,6 +396,11 @@ end
 local function set_map_settings()
 	local map = game.GetMap()
 	if (map == "zm_deathrun_a7") then -- Apply custom settings for map zm_deathrun_a7
+		options.MinTrapRange = 10000 -- Units
+		options.MaxTrapRange = 10001 -- Units
+		options.MinTrapChance = 0.01 -- Percent
+		options.MaxTrapChance = 0.4 -- Percent
+	elseif (map == "zm_deathrun_v1") then
 		options.MinTrapRange = 10000 -- Units
 		options.MaxTrapRange = 10001 -- Units
 		options.MinTrapChance = 0.01 -- Percent
@@ -541,7 +584,7 @@ local function check_for_traps()
 		if (IsValid(ent)) then -- Check if trap is vaild and not used
 			local sphereSearch, positions, searchType = true, nil, nil
 			local settings = get_trap_settings(ent) -- Get trap settings
-			if (table.Count(settings.Position) > 1) then 
+			if (table.Count(settings.Position) > 1) then -- If it's a sphere or box
 				sphereSearch = false 
 				positions = settings.Position -- Gets vectors as a table
 			else 
@@ -550,7 +593,8 @@ local function check_for_traps()
 			if (sphereSearch) then searchType = ents.FindInSphere(ent:GetPos(), settings.TrapUsageRadius) else searchType = ents.FindInBox(positions[1], positions[2]) end
 			for ___, ply in RandomPairs(searchType) do -- Checks if any players within given radius of the trap
 				if ((ply:IsPlayer()) && (ent:GetActive())) then -- Check if entity is player 
-					if (!ply.IsZMBot) then 
+					local ignorePlayer = get_player_in_ignore_table(ply)
+					if ((!ply.IsZMBot) && (!ignorePlayer)) then 
 						local canUse = true
 						if (settings.HasToBeVisible) then -- If it matters if the trap is visible
 							if (!ent:Visible(ply)) then -- is not visible to the trap
@@ -622,11 +666,15 @@ end
 local function using_explosion()
 	if ((CurTime() < explosionDelay) || (options.UseExplosionChance < math.Rand(0, 1))) then return end
 	for ___, ply in RandomPairs(team.GetPlayers(HUMANTEAM)) do
-		local amount = #ents.FindInSphere(ply:GetPos(), options.ExplosionSearchRange) -- Get all amount of ents within range of player
-		if (amount > options.ExplosionUseAmount) then
-			create_explosion(ply:GetPos()) -- Create explosion at player
-			options.UseExplosionChance = get_chance_explosion()
-			explosionDelay = CurTime() + options.ExplosionDelay
+		local ignorePlayer = get_player_in_ignore_table(ply)
+		if (!ignorePlayer) then
+			local amount = #ents.FindInSphere(ply:GetPos(), options.ExplosionSearchRange) -- Get all amount of ents within range of player
+			if (amount > options.ExplosionUseAmount) then
+				create_explosion(ply:GetPos()) -- Create explosion at player
+				options.UseExplosionChance = get_chance_explosion()
+				if (options.Debug) then zmBot:Say("Explosion used on: " .. ply:Nick()) end
+				explosionDelay = CurTime() + options.ExplosionDelay
+			end
 		end
 	end
 end
@@ -701,7 +749,7 @@ local function zm_brain()
 		-- Functions that will be effected by bot speed go below if realtime go above
 		if (CurTime() < speedDelay) then return end
 		set_zm_settings() -- Set all the settings
-		using_spawner() -- Function which includes functionality using a spawner
+		using_spawner() -- Function which includes functionality for using a spawner
 		using_trap() -- Function which includes functionality for traps
 		using_explosion() -- Function which includes functionality explosions
 		deleting_zombies() -- Function which includes functionality for deleting zombies
@@ -825,19 +873,6 @@ concommand.Add( "zm_ai_debug", function(ply, cmd, args)
 	end
 end )
 
--- Toggle Force Start
-concommand.Add( "zm_ai_enable_force_start", function(ply, cmd, args)
-	if (ply:IsAdmin()) then 
-		if (!options.SpawnForcing) then 
-			options.SpawnForcing = true 
-			print("Force Start Enabled")
-		else 
-			options.SpawnForcing = false 
-			print("Force Start Disabled")
-		end
-	end
-end )
-
 -- Forces the round to begin
 concommand.Add( "zm_ai_force_start_round", function(ply, cmd, args)
 	if (ply:IsAdmin()) then 
@@ -845,6 +880,21 @@ concommand.Add( "zm_ai_force_start_round", function(ply, cmd, args)
 		zmBot:Say("Round forcefully started")
 	end
 end)
+
+-- Adds player to the ignore list
+concommand.Add( "zm_ai_ignore_player", function(ply, cmd, args)
+	if (ply:IsAdmin()) then 
+		add_player_ignore(ply)
+	end
+end)
+
+-- Removes player from the ignore list
+concommand.Add( "zm_ai_remove_ignore_player", function(ply, cmd, args)
+	if (ply:IsAdmin()) then 
+		remove_player_ignore(ply)
+	end
+end)
+
 
 -- Move Player To Last spawned Zombie Spawn
 concommand.Add( "zm_ai_move_ply_to_last_spawn", function(ply, cmd, args)
