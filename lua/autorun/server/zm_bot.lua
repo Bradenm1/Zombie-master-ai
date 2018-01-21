@@ -172,27 +172,6 @@ local function get_last_trap_used()
 end
 
 ----------------------------------------------------
--- add_player_ignore()
--- Adds player to a list in which AI will ignore
--- @param ply Player: Player to be added
-----------------------------------------------------
-local function add_player_ignore(ply)
-	local playerID = ply:AccountID()
-	local exists = table.KeyFromValue(options.PlayersToIgnore, playerID)
-	if (exists) then return end
-	table.insert(options.PlayersToIgnore, ply:AccountID())
-end
-
-----------------------------------------------------
--- remove_player_ignore()
--- Removes a player from list in which AI will ignore
--- @param ply Player: Player to be removed
-----------------------------------------------------
-local function remove_player_ignore(ply)
-	table.RemoveByValue(options.PlayersToIgnore, ply:AccountID())
-end
-
-----------------------------------------------------
 -- remove_player_ignore()
 -- Checks if player should be ignored by the AI
 -- @param Boolean: If player should be ignored
@@ -230,6 +209,27 @@ local function get_players_within_box(pos01, pos02)
 		if (ply:IsPlayer()) then table.insert(players, ply) end
 	end
 	return players
+end
+
+----------------------------------------------------
+-- add_player_ignore()
+-- Adds player to a list in which AI will ignore
+-- @param ply Player: Player to be added
+----------------------------------------------------
+local function add_player_ignore(ply)
+	local playerID = ply:AccountID()
+	local exists = table.KeyFromValue(options.PlayersToIgnore, playerID)
+	if (exists) then return end
+	table.insert(options.PlayersToIgnore, ply:AccountID())
+end
+
+----------------------------------------------------
+-- remove_player_ignore()
+-- Removes a player from list in which AI will ignore
+-- @param ply Player: Player to be removed
+----------------------------------------------------
+local function remove_player_ignore(ply)
+	table.RemoveByValue(options.PlayersToIgnore, ply:AccountID())
 end
 
 ----------------------------------------------------	
