@@ -13,6 +13,7 @@ local HUMANTEAM = 1
 local ZOMBIEMASTERTEAM = 2
 local SPECTATORTEAM = 3
 local DAMAGEZOMBIEMULTIPLIER = 1.25
+
 -- Vars
 local speedDelay, spawnDelay, commandDelay, killZombieDelay, spawnRangeDelay, explosionDelay = 0, 0, 0, 0, 0, 0 -- Delays
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
@@ -56,6 +57,7 @@ local options = {
 	LastZombieCommanded = nil, -- Last zombie commanded
 	View				= nil, -- Where the bot currently is
 	Traps				= {}, -- Used to stored the traps at round starts if dynamic is false
+	Explosions			= {},
 	PlayersToIgnore		= {} -- List of players to be ignored by the AI
 }
 
@@ -198,6 +200,36 @@ end
 local function get_player_in_ignore_table(ply)
 	local ignorePlayer = table.KeyFromValue(options.PlayersToIgnore, ply:AccountID())
 	if (ignorePlayer) then return true else return false end
+end
+
+----------------------------------------------------
+-- get_players_within_radius()
+-- Check for players within a given range at a certain position
+-- @param pos Vector: Position to search from
+-- @param pos Integer: Radius to search
+-- @return players Table: Players within range
+----------------------------------------------------
+local function get_players_within_radius(pos, radius)
+	local players = {}
+	for ___, ply in pairs(ents.FindInSphere(pos, radius)) do 
+		if (ply:IsPlayer()) then table.insert(players, ply) end
+	end
+	return players
+end
+
+----------------------------------------------------
+-- get_players_within_box()
+-- Check for players within a box at a certain position
+-- @param pos01 Vector: First position
+-- @param pos02 Vector: second position
+-- @return players Table: Players within range
+----------------------------------------------------
+local function get_players_within_box(pos01, pos02)
+	local players = {}
+	for ___, ply in pairs(ents.FindInBox(pos01, pos02)) do 
+		if (ply:IsPlayer()) then table.insert(players, ply) end
+	end
+	return players
 end
 
 ----------------------------------------------------
@@ -530,6 +562,37 @@ local function set_map_trap_settings()
 	end
 end
 
+----------------------------------------------------	
+-- set_explosion_settings()
+-- Set custom stats for a certain trap
+-- @param arg1 Float: Trap usage chance
+-- @param arg2 Integer: Trap usage radius
+-- @param arg3 Table: Vector(s) position for trap or position of trigger box
+-- @param arg4 Boolean: If a player needs to be in line of sight
+-- @return Boolean: If settings were applied
+----------------------------------------------------
+local function set_explosion_settings(...) 
+	local arguments = {...} -- Get passed in arguments as table
+	table.insert( options.Explosions, {
+		UseExplosionChance = arguments[1],
+		ExplosionUsageRadius = arguments[2],
+		Position = arguments[3],
+		HasToBeVisible = arguments[4]
+	})
+end
+
+----------------------------------------------------	
+-- set_map_explosion_settings()
+-- Check for a certain map and sets custom explosions
+----------------------------------------------------
+-- Will be move to another file in the future
+local function set_map_explosion_settings()
+	local map = game.GetMap()
+	if (map == "zm_gasdump_b4") then
+		set_explosion_settings(0.9, 192, Vector(1596,-1900,-230), false) 
+	end
+end
+
 ----------------------------------------------------
 -- create_explosion()
 -- Causes a explosion forces props away
@@ -587,16 +650,14 @@ local function check_for_traps()
 			else 
 				ent:SetPos(settings.Position[1]) -- Gets the one vector
 			end
-			if (sphereSearch) then searchType = ents.FindInSphere(ent:GetPos(), settings.TrapUsageRadius) else searchType = ents.FindInBox(positions[1], positions[2]) end
+			if (sphereSearch) then searchType = get_players_within_radius(ent:GetPos(), settings.TrapUsageRadius) else searchType = get_players_within_box(positions[1], positions[2]) end
 			for ___, ply in RandomPairs(searchType) do -- Checks if any players within given radius of the trap
-				if ((ply:IsPlayer()) && (ent:GetActive())) then -- Check if entity is player 
+				if (ent:GetActive()) then -- Check if entity is player 
 					local ignorePlayer = get_player_in_ignore_table(ply)
 					if ((!ply.IsZMBot) && (!ignorePlayer)) then 
 						local canUse = true
 						if (settings.HasToBeVisible) then -- If it matters if the trap is visible
-							if (!ent:Visible(ply)) then -- is not visible to the trap
-								canUse = false
-							end 
+							if (!ent:Visible(ply)) then canUse = false end -- is not visible to the trap
 						end
 						if (options.Debug) then zmBot:Say(ply:Nick() .. " Is within a trap at of radius: " .. settings.TrapUsageRadius .. " of chance: " .. settings.UseTrapChance .. " at going off.") end
 						if (canUse) then return ent end
@@ -634,7 +695,8 @@ local function set_zm_settings()
 		-- This section is done once during the round start
 		set_map_settings() -- Set if certain map is on
 		set_up_all_traps() -- Sets up the traps in the map
-		set_map_trap_settings() -- Has to be after
+		set_map_trap_settings() -- Then set traps
+		set_map_explosion_settings()
 		zmBot:SetZMPoints(10000)
 		options.UseExplosionChance = get_chance_explosion()
 		options.Debug = false
@@ -657,11 +719,33 @@ local function using_spawner()
 end
 
 ----------------------------------------------------
--- using_explosion()
--- Controls the bot using the explosion
+-- using_explosion_custom_set()
+-- Controls the bot using explosion at custom set locations
 ----------------------------------------------------
-local function using_explosion()
-	if ((CurTime() < explosionDelay) || (options.UseExplosionChance < math.Rand(0, 1))) then return end
+local function using_explosion_custom_set()
+	for _, exp in RandomPairs(options.Explosions) do
+		if (exp.UseExplosionChance > math.Rand(0, 1)) then
+			for __, ply in RandomPairs(get_players_within_radius(exp.Position, exp.ExplosionUsageRadius)) do
+				local canUse = true
+				if (exp.HasToBeVisible) then
+					if (!exp:Visible(ply)) then canUse = false end
+				end
+				if (canUse) then 
+					if (options.Debug) then zmBot:Say("Custom Explosion used on: " .. ply:Nick()) end
+					create_explosion(ply:GetPos()) 
+					explosionDelay = CurTime() + options.ExplosionDelay
+				end
+			end
+		end
+	end
+end
+
+----------------------------------------------------
+-- using_explosion_random()
+-- Controls the bot using explosion on a players
+----------------------------------------------------
+local function using_explosion_random()
+	if (options.UseExplosionChance < math.Rand(0, 1)) then return end
 	for ___, ply in RandomPairs(team.GetPlayers(HUMANTEAM)) do
 		local ignorePlayer = get_player_in_ignore_table(ply)
 		if (!ignorePlayer) then
@@ -674,6 +758,16 @@ local function using_explosion()
 			end
 		end
 	end
+end
+
+----------------------------------------------------
+-- using_explosion()
+-- Controls the bot using the explosion
+----------------------------------------------------
+local function using_explosion()
+	if (CurTime() < explosionDelay) then return end
+	using_explosion_custom_set()
+	using_explosion_random()
 end
 
 ----------------------------------------------------
