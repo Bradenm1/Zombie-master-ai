@@ -1,5 +1,5 @@
 -- Author: Bradenm1
--- Repo: https://github.com/Bradenm1/Zombie_Master_Bot
+-- Repo: https://github.com/Bradenm1/Zombie-master-ai
 
 if (SERVER) then
 
@@ -232,6 +232,20 @@ local function get_players_within_box(pos01, pos02)
 	return players
 end
 
+----------------------------------------------------	
+-- get_creationid_within_range()
+-- Displays creationID for a trap close to a player
+----------------------------------------------------
+local function get_creationid_within_range()
+	for _, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
+		for ___, ply in pairs(ents.FindInSphere(ent:GetPos(), 96)) do -- Checks if any players within given radius of the trap
+			if (ply:IsPlayer()) then 
+				print("CreationID: " .. ent:MapCreationID())
+			end
+		end
+	end
+end
+
 ----------------------------------------------------
 -- debug_show_stats()
 -- Shows stats of AI
@@ -329,92 +343,6 @@ function create_zm_view()
 	options.View:StopMotionController()
 	options.View:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
 	options.View:Spawn()
-end
-
-----------------------------------------------------	
--- get_creationid_within_range()
--- Displays creationID for a trap close to a player
-----------------------------------------------------
-local function get_creationid_within_range()
-	for _, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
-		for ___, ply in pairs(ents.FindInSphere(ent:GetPos(), 96)) do -- Checks if any players within given radius of the trap
-			if (ply:IsPlayer()) then 
-				print("CreationID: " .. ent:MapCreationID())
-			end
-		end
-	end
-end
-
-
-----------------------------------------------------
--- pick_zombie()
--- Picks a random zombie
--- @return zb String: The zombie to use as class
-----------------------------------------------------
-local function pick_zombie()
-	local tb = gamemode.Call("GetZombieTable", false)
-	local zb = "npc_zombie"
-	for _, zm in pairs(tb) do -- Finds zombie
-		if (get_zombie_chance() == 0) then zb = zm.Class end -- Checks if this is the zombie to use
-	end
-	return zb
-end
-
-----------------------------------------------------
--- spawn_zombie()
--- Spawns a zombie
--- @param ent Entity: Spawn to spawn zombie at
-----------------------------------------------------
-local function spawn_zombie(ent)
-	if (options.SpawnZombieChance < math.Rand(0, 1)) then return nil end
-	local zb = pick_zombie()
-	-- Attempt to spawn another zombie if failed
-	--[[local allowed = true
-	local attempts = 0
-	while (allowed) do
-		if (attempts > 5) then 
-			if (options.Debug) then zmBot:Say("Attempt to spawn zombie failed... Query: " .. #ent.query) end
-			return nil 
-		end
-		local data = gamemode.Call("GetZombieData", zb)
-		if ((data) && (#ent.query < 18)) then
-			local zombieFlags = ent:GetZombieFlags() or 0
-			allowed = gamemode.Call("CanSpawnZombie", data.Flag or 0, zombieFlags)
-			if (!allowed) then zb = pick_zombie() end
-			attempts = attempts + 1
-		end
-	end]]
-	ent:AddQuery(zmBot, zb, 1)
-	options.LastSpawned = ent
-	if (options.Debug) then zmBot:Say("Attempted to spawn: " .. zb) end
-end
-
-----------------------------------------------------
--- check_for_spawner()
--- Finds zombies spawners and spawns a zombie
--- @return entToUse Entity: cloeset spawner
-----------------------------------------------------
-local function check_for_closest_spawner()
-	if (get_zombie_population() > options.MaxZombies) then return nil end
-	local zombieSpawns = ents.FindByClass("info_zombiespawn")
-	if (#zombieSpawns == 0) then return nil end -- Checks if there's any spawns
-	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Picks a random player from humanteam
-	local ignorePlayer = get_player_in_ignore_table(player)
-	if (ignorePlayer) then return end
-	local entToUse = nil -- Default to nil
-	for __, spawn in RandomPairs(zombieSpawns) do -- Find cloest spawn point
-		if ((IsValid(spawn)) && (spawn:GetActive())) then
-			if (entToUse) then -- If it's not the first zombie spawner
-				local newDis = spawn:GetPos():Distance(player:GetPos()) -- Get Distance of new spawner
-				local oldDis = entToUse:GetPos():Distance(player:GetPos()) -- Get Distance of stored spawner
-				if (oldDis > newDis) then entToUse = spawn end -- Check which one is closer
-			else entToUse = spawn end -- Set First Spawner in the table to check
-		end
-	end
-	if (!entToUse) then return nil end
-	local dis = entToUse:GetPos():Distance(player:GetPos()) -- Get distance of closest spawner to player
-	if (dis > options.SpawnRadius) then return nil end -- Checks if spawn is within distance
-	return entToUse -- Return the closest spawn
 end
 
 ----------------------------------------------------	
@@ -588,9 +516,9 @@ end
 -- Will be move to another file in the future
 local function set_map_explosion_settings()
 	local map = game.GetMap()
-	if (map == "zm_gasdump_b4") then
-		set_explosion_settings(0.9, 192, Vector(1596,-1900,-230), false) 
-	end
+	--if (map == "zm_gasdump_b4") then
+		-- set_explosion_settings(0.9, get_trap_usage_radius(), Vector(1596,-1900,-230), false) -- Example
+	--end
 end
 
 ----------------------------------------------------
@@ -705,6 +633,77 @@ local function set_zm_settings()
 	else -- Dynamic stats, that can change during the game
 		options.MaxZombies = get_max_zombies()
 	end
+end
+
+----------------------------------------------------
+-- pick_zombie()
+-- Picks a random zombie
+-- @return zb String: The zombie to use as class
+----------------------------------------------------
+local function pick_zombie()
+	local tb = gamemode.Call("GetZombieTable", false)
+	local zb = "npc_zombie"
+	for _, zm in pairs(tb) do -- Finds zombie
+		if (get_zombie_chance() == 0) then zb = zm.Class end -- Checks if this is the zombie to use
+	end
+	return zb
+end
+
+----------------------------------------------------
+-- spawn_zombie()
+-- Spawns a zombie
+-- @param ent Entity: Spawn to spawn zombie at
+----------------------------------------------------
+local function spawn_zombie(ent)
+	if (options.SpawnZombieChance < math.Rand(0, 1)) then return nil end
+	local zb = pick_zombie()
+	-- Attempt to spawn another zombie if failed
+	--[[local allowed = true
+	local attempts = 0
+	while (allowed) do
+		if (attempts > 5) then 
+			if (options.Debug) then zmBot:Say("Attempt to spawn zombie failed... Query: " .. #ent.query) end
+			return nil 
+		end
+		local data = gamemode.Call("GetZombieData", zb)
+		if ((data) && (#ent.query < 18)) then
+			local zombieFlags = ent:GetZombieFlags() or 0
+			allowed = gamemode.Call("CanSpawnZombie", data.Flag or 0, zombieFlags)
+			if (!allowed) then zb = pick_zombie() end
+			attempts = attempts + 1
+		end
+	end]]
+	ent:AddQuery(zmBot, zb, 1)
+	options.LastSpawned = ent
+	if (options.Debug) then zmBot:Say("Attempted to spawn: " .. zb) end
+end
+
+----------------------------------------------------
+-- check_for_spawner()
+-- Finds zombies spawners and spawns a zombie
+-- @return entToUse Entity: cloeset spawner
+----------------------------------------------------
+local function check_for_closest_spawner()
+	if (get_zombie_population() > options.MaxZombies) then return nil end
+	local zombieSpawns = ents.FindByClass("info_zombiespawn")
+	if (#zombieSpawns == 0) then return nil end -- Checks if there's any spawns
+	local player = table.Random(team.GetPlayers(HUMANTEAM)) -- Picks a random player from humanteam
+	local ignorePlayer = get_player_in_ignore_table(player)
+	if (ignorePlayer) then return end
+	local entToUse = nil -- Default to nil
+	for __, spawn in RandomPairs(zombieSpawns) do -- Find cloest spawn point
+		if ((IsValid(spawn)) && (spawn:GetActive())) then
+			if (entToUse) then -- If it's not the first zombie spawner
+				local newDis = spawn:GetPos():Distance(player:GetPos()) -- Get Distance of new spawner
+				local oldDis = entToUse:GetPos():Distance(player:GetPos()) -- Get Distance of stored spawner
+				if (oldDis > newDis) then entToUse = spawn end -- Check which one is closer
+			else entToUse = spawn end -- Set First Spawner in the table to check
+		end
+	end
+	if (!entToUse) then return nil end
+	local dis = entToUse:GetPos():Distance(player:GetPos()) -- Get distance of closest spawner to player
+	if (dis > options.SpawnRadius) then return nil end -- Checks if spawn is within distance
+	return entToUse -- Return the closest spawn
 end
 
 ----------------------------------------------------
