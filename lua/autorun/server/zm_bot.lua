@@ -13,7 +13,6 @@ local HUMANTEAM = 1
 local ZOMBIEMASTERTEAM = 2
 local SPECTATORTEAM = 3
 local DAMAGEZOMBIEMULTIPLIER = 1.25
-
 -- Vars
 local speedDelay, spawnDelay, commandDelay, killZombieDelay, spawnRangeDelay, explosionDelay = 0, 0, 0, 0, 0, 0 -- Delays
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
@@ -50,8 +49,6 @@ local options = {
 	SpawnRangeDelay		= 10, -- Delay in seconds, incressing range if no zombies
 	ExplosionDelay		= 35, -- Delay in seconds
 	Playing				= true, -- If the bot is currently playing
-								 -- True means it changes on the fly each time a trap is used
-								 -- False means it does not and all traps have set chances and ranges from the start of the round
 	Debug 				= false, -- Used for basic debugging
 	SetUp 				= true, -- Setup for the bot
 	LastSpawned			= nil, -- Last spawner used
@@ -195,7 +192,7 @@ end
 
 ----------------------------------------------------
 -- remove_player_ignore()
--- Removes a player from list in which AI will ignore
+-- Checks if player should be ignored by the AI
 -- @param Boolean: If player should be ignored
 ----------------------------------------------------
 local function get_player_in_ignore_table(ply)
@@ -205,7 +202,7 @@ end
 
 ----------------------------------------------------
 -- debug_show_stats()
--- Shows stats of bot
+-- Shows stats of AI
 ----------------------------------------------------
 local function debug_show_stats()
 	zmBot:Say("Use Trap Chance: " .. options.UseTrapChance)

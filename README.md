@@ -9,12 +9,13 @@ This bot can currently:
 * Use traps
 * Spawn all types of zombies
 * Command zombies
-* Kill Zombies (No players are near them)
+* Kill zombies (No players are near them)
+* Use explosions
 
 ### Installation
 
 * Download Zombie Master Gamemode
-* Install in bot at Garrys Mod Addons folder
+* Install at Garrys Mod Addons folder
 
 ### Usage
 
@@ -24,6 +25,8 @@ Play!
 #### Console Commands: 
 * zm_ai_enabled - Disables or Enables the bot. Toggle
 * zm_ai_force_start_round - Forces the round to start/restart
+* zm_ai_ignore_player - Adds player to a list for AI to ignore
+* zm_ai_remove_ignore_player - Removes player from the ignore list
 * zm_ai_max_zombies_per_player - Max amount of zombies the AI can spawn per player. Default 16
 * zm_ai_speed - Changes bots global speed. Default: 1
 * zm_ai_debug - Shows debug log in chat of what bot is doing and prints to console for debug reasons. Toggle
