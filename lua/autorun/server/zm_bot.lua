@@ -451,6 +451,7 @@ end
 -- Sets up all the traps from the get go with stats
 ----------------------------------------------------
 local function set_up_all_traps()
+	table.Empty(options.Traps)
 	for _, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
 		table.insert( options.Traps, {
 			Trap = ent:MapCreationID(),
