@@ -3,16 +3,17 @@
 
 if (SERVER) then
 
-include("botnames.lua")
-
 -- Saving while playing and editing the bot will break it
 
 -- Constants
 local GAMEMODE = "zombiemaster"
+local MAPSETTINGSPATH = "autorun/server/zm_bot_maps/"
 local HUMANTEAM = 1
 local ZOMBIEMASTERTEAM = 2
 local SPECTATORTEAM = 3
 local DAMAGEZOMBIEMULTIPLIER = 1.25
+
+local names = include("zm_bot_names.lua")
 
 -- Vars
 local speedDelay, spawnDelay, commandDelay, killZombieDelay, spawnRangeDelay, explosionDelay = 0, 0, 0, 0, 0, 0 -- Delays
@@ -55,7 +56,6 @@ local options = {
 	LastSpawned			= nil, -- Last spawner used
 	LastTrapUsed		= nil, -- Last trap used
 	LastZombieCommanded = nil, -- Last zombie commanded
-	View				= nil, -- Where the bot currently is
 	Traps				= {}, -- Used to stored the traps at round starts if dynamic is false
 	Explosions			= {},
 	PlayersToIgnore		= {} -- List of players to be ignored by the AI
@@ -321,26 +321,6 @@ local function move_zombie_to_player()
 end
 
 ----------------------------------------------------	
--- set_map_settings()
--- Checks for a certain map and adds custom settings
-----------------------------------------------------
--- Will be move to another file in the future
-local function set_map_settings()
-	local map = game.GetMap()
-	if (map == "zm_deathrun_a7") then -- Apply custom settings for map zm_deathrun_a7
-		options.MinTrapRange = 10000 -- Units
-		options.MaxTrapRange = 10001 -- Units
-		options.MinTrapChance = 0.01 -- Percent
-		options.MaxTrapChance = 0.4 -- Percent
-	elseif (map == "zm_deathrun_v1") then
-		options.MinTrapRange = 10000 -- Units
-		options.MaxTrapRange = 10001 -- Units
-		options.MinTrapChance = 0.01 -- Percent
-		options.MaxTrapChance = 0.4 -- Percent
-	end
-end
-
-----------------------------------------------------	
 -- set_trap_settings()
 -- Set custom stats for a certain trap
 -- @param arg1 Integer: CreationID of the entity
@@ -372,100 +352,6 @@ local function set_trap_settings(...)
 end
 
 ----------------------------------------------------	
--- set_map_trap_settings()
--- Check for a certain map and sets custom traps
-----------------------------------------------------
--- Will be move to another file in the future
-local function set_map_trap_settings()
-	local map = game.GetMap()
-	if (map == "zm_asdf_b5") then -- Apply custom settings for map zm_deathrun_a7
-		set_trap_settings(1255, nil, nil, {Vector(-1281, -1952, -948)}, true) -- Red block that falls with hole in center
-		local tp = {Vector(-734, -1215, -911)}
-		set_trap_settings(2437, nil, nil, tp, true) -- tp
-		set_trap_settings(2220, nil, nil, tp, true) -- tp
-		set_trap_settings(2215, nil, nil, tp, true) -- tp
-		local path = {Vector(731, -2085, -834)}
-		set_trap_settings(1264, nil, nil, path, true) -- path
-		set_trap_settings(1265, nil, nil, path, true) -- path
-		set_trap_settings(1266, nil, nil, path, true) -- path
-		local laser = {Vector(22, -189, -663)}
-		set_trap_settings(2379, nil, nil, laser, true) -- laser
-		set_trap_settings(2393, nil, nil, laser, true) -- laser
-		set_trap_settings(2393, nil, nil, laser, true) -- laser
-		set_trap_settings(1275, nil, nil, {Vector(605, -1462, -175)}, true) -- red wall
-	elseif (map == "zm_gasdump_b4") then
-		set_trap_settings(2452, 0.02, 2096, nil, false) -- Tornado
-	elseif (map == "zm_backwoods_b4") then
-		-- Trigger is in not the best spot for these trap doors
-		set_trap_settings(2015, nil, nil, {Vector(-2290, 2322, -231)}, true) -- First trap door
-		set_trap_settings(2016, nil, nil, {Vector(-3057, 2326, -227)}, true) -- Second trap door
-		set_trap_settings(2350, nil, nil, {Vector(-5731, 7199, -229)}, true) -- Third trap door
-		set_trap_settings(2367, nil, nil, {Vector(-7438, 7187, -229)}, true) -- Fourth trap door
-		set_trap_settings(1260, nil, nil, {Vector(-4352, 7494, -23)}, false) -- Tall Building
-	elseif (map == "zm_basin_b3fix") then
-		set_trap_settings(2656, nil, nil, {Vector(-3599, 22, 303)}, true) -- Kill AFKs
-		set_trap_settings(2353, nil, nil, {Vector(-722, -2255, -167)}, false) -- First gate
-		set_trap_settings(2689, nil, nil, {Vector(1794, -2143, 126)}, true) -- Hanging timber outside hanger door
-		set_trap_settings(2342, nil, nil, {Vector(1768, -3061, 146)}, true) -- Drop building overhanging roof
-		set_trap_settings(2367, nil, nil, {Vector(2861, -2513, 142)}, false) -- Second Gate
-		set_trap_settings(2710, nil, nil, {Vector(3576, 1920, 173)}, true) -- Motor Bomb
-		set_trap_settings(2585, nil, nil, {Vector(2096, 3466, 151)}, true) -- Trailer cannon explosion
-		set_trap_settings(2608, nil, nil, {Vector(-799, 4488, 105)}, true) -- Drop Trailer over railing
-		set_trap_settings(2518, nil, nil, {Vector(-2546, 2752, 105)}, false) -- Open building near boat
-	elseif (map == "zm_diamondshoals_a2") then
-		set_trap_settings(2154, nil, nil, {Vector(608, 3188, -1007)}, false) -- FLoating explosive barrel boat
-		set_trap_settings(2163, nil, nil, {Vector(1418, 5481, -872)}, true) -- Crab Sign
-	elseif (map == "zm_bluevelvet_rc1") then
-		set_trap_settings(2149, nil, nil, {Vector(-2033, 1913, -152)}, false) -- Auto Opening door
-		set_trap_settings(2187, nil, nil, nil, false) -- Door
-		set_trap_settings(1825, nil, nil, nil, false) -- Same door
-		set_trap_settings(3373, nil, nil, {Vector(-6015, 847, -553)}, false) -- Spawn immolator near door to cut at trains
-		set_trap_settings(3396, nil, nil, {Vector(-3227, 983, -542)}, false) -- Spawn banshees opposite side
-	elseif (map == "zm_countrytrain_b4") then
-		set_trap_settings(2997, nil, nil, {Vector(-667, 1517, 63)}, false) -- Dumb rock
-		set_trap_settings(3244, nil, nil, {Vector(907, -503, 46)}, false) -- Second falling gate
-		set_trap_settings(3025, nil, nil, {Vector(27, 2492, 46)}, false) -- Throw rocks onto train tracks
-		set_trap_settings(3248, nil, nil, {Vector(2805, 1149, 25)}, false) -- First falling gate
-		set_trap_settings(1671, nil, nil, {Vector(2849, -597, 37)}, true) -- Send banshee into shed roof window
-		set_trap_settings(3288, nil, nil, {Vector(1512, 577, 32)}, false) -- Spawn two hulks
-		set_trap_settings(2498, nil, nil, {Vector(2126, -75, 51)}, false) -- Spawn immolator
-		set_trap_settings(3208, nil, nil, {Vector(-1879, 2111, 50)}, false) -- Spawn banshee onto of spawn building
-		set_trap_settings(3008, nil, nil, {Vector(598, 37, 114)}, false) -- Falling rocks at second gate
-		set_trap_settings(2008, nil, nil, {Vector(-563, -1011, 51)}, false) -- Raise 2 immolators at gas station
-		set_trap_settings(2995, nil, nil, {Vector(-1146, 368, 59)}, false) -- Falling rocks on path
-	elseif (map == "zm_forestroad") then
-		set_trap_settings(2047, nil, nil, {Vector(2041, 1275, 267)}, true) -- Zap shed
-		set_trap_settings(2254, nil, nil, {Vector(4367, -1463, 86)}, false) -- Oil fire
-		set_trap_settings(2049, nil, nil, {Vector(4742, -2415, 64)}, true) -- Drop giant rock
-	elseif (map == "zm_4dtetris_new") then
-		local slots = {}
-		local traps = {	{1237, 1246, 1320, 1338, 1354, 1370, 1388, 1436}, 
-						{1238, 1247, 1321, 1339, 1355, 1371, 1389, 1437},
-						{1239, 1248, 1322, 1340, 1356, 1372, 1390, 1438},
-						{1240, 1249, 1323, 1341, 1357, 1373, 1391, 1439},
-						{1241, 1250, 1324, 1342, 1358, 1374, 1392, 1440, 1404, 1456, 1881},
-						{1242, 1251, 1325, 1343, 1359, 1375, 1393, 1441},
-						{1243, 1252, 1326, 1344, 1358, 1376, 1394, 1442},
-						{1244, 1253, 1327, 1345, 1359, 1377, 1395, 1443},
-						{1245, 1254, 1328, 1345, 1360, 1378, 1395, 1444}
-					}
-		local firstCal, secondCal = -1024, -557
-		-- Create triggers
-		for i=1, #traps do -- Each slot
-			slots[i] = {Vector(836, firstCal, -3300), Vector(1066, secondCal, 3013)} -- Box
-			firstCal = firstCal + 200 -- Size of trigger
-			secondCal = secondCal + 250 -- Size of trigger
-		end
-		-- Put which trap belongs on what trigger
-		for i=1, #slots do -- Each slot
-			for o=1, #traps[i] do -- Each trap in the slot
-				set_trap_settings(traps[i][o], nil, nil, slots[i], true) -- Set the trap
-			end 
-		end
-	end
-end
-
-----------------------------------------------------	
 -- set_explosion_settings()
 -- Set custom stats for a certain trap
 -- @param arg1 Float: Trap usage chance
@@ -482,18 +368,6 @@ local function set_explosion_settings(...)
 		Position = arguments[3],
 		HasToBeVisible = arguments[4]
 	})
-end
-
-----------------------------------------------------	
--- set_map_explosion_settings()
--- Check for a certain map and sets custom explosions
-----------------------------------------------------
--- Will be move to another file in the future
-local function set_map_explosion_settings()
-	local map = game.GetMap()
-	--if (map == "zm_gasdump_b4") then
-		-- set_explosion_settings(0.9, get_trap_usage_radius(), Vector(1596,-1900,-230), false) -- Example
-	--end
 end
 
 ----------------------------------------------------
@@ -589,6 +463,38 @@ local function set_up_all_traps()
 	if (options.Debug) then PrintTable(options.Traps) end
 end
 
+----------------------------------------------------	
+-- set_all_map_settings()
+-- Gets all custom settings for maps if set and sets it
+----------------------------------------------------
+local function set_all_map_settings()
+	local map = game.GetMap() .. ".lua"
+	local files, _ = file.Find(MAPSETTINGSPATH .. "*", "LUA") 
+	for i, filename in ipairs(files) do
+		if (map == filename) then
+			mapSettings, mapTrapSettings, mapExplosionSettings = include(MAPSETTINGSPATH .. map) -- Gets settings from the map file
+			if (mapSettings) then -- Sets up custom settings if any
+				for _, setting in ipairs(mapSettings) do
+					local index = setting[1]
+					local value = setting[2]
+					options[index] = value
+				end
+			end
+			set_up_all_traps() -- Sets up the traps in the map given the settings
+			if (mapTrapSettings) then -- Sets up custom traps if any
+				for _, trap in ipairs(mapTrapSettings) do
+					set_trap_settings(trap.creationID, trap.usageChance, trap.usageRadius, trap.positions, trap.lineOfSight)
+				end
+			end
+			if (mapExplosionSettings) then -- Sets up custom explosions if any
+				for _, exp in ipairs(mapExplosionSettings) do
+					set_explosion_settings(exp.useExplosionChance, exp.explosionUsageRadius, exp.position, exp.lineOfSight)
+				end
+			end
+		end
+	end
+end
+
 ----------------------------------------------------
 -- set_zm_settings()
 -- Sets up the bots stats
@@ -596,10 +502,7 @@ end
 local function set_zm_settings()
 	if (options.SetUp) then -- The setup for the bot 
 		-- This section is done once during the round start
-		set_map_settings() -- Set if certain map is on
-		set_up_all_traps() -- Sets up the traps in the map
-		set_map_trap_settings() -- Then set traps
-		set_map_explosion_settings()
+		set_all_map_settings() -- Sets custom settings
 		zmBot:SetZMPoints(10000)
 		options.UseExplosionChance = get_chance_explosion()
 		options.Debug = false
