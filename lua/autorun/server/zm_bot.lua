@@ -98,8 +98,7 @@ end
 -- @return maxZombies Integer: max zombies
 ----------------------------------------------------
 local function get_max_zombies()
-	local maxZombies = #team.GetPlayers(HUMANTEAM) * options.ZombiesPerPlayer
-	return maxZombies
+	return #team.GetPlayers(HUMANTEAM) * options.ZombiesPerPlayer
 end
 
 ----------------------------------------------------
@@ -108,8 +107,7 @@ end
 -- @return amount Integer: number of zombie types
 ----------------------------------------------------
 local function get_zombie_type_amount()
-	local amount = table.Count(gamemode.Call("GetZombieTable", false))
-	return amount
+	return table.Count(gamemode.Call("GetZombieTable", false))
 end
 
 ----------------------------------------------------
@@ -118,8 +116,7 @@ end
 -- @return chance Integer: chance
 ----------------------------------------------------
 local function get_zombie_chance()
-	local chance = math.random(0, options.MaxZombieTypeChance) % get_zombie_type_amount()
-	return chance
+	return math.random(0, options.MaxZombieTypeChance) % get_zombie_type_amount()
 end
 
 ----------------------------------------------------
@@ -128,8 +125,7 @@ end
 -- @return chance Float: chance
 ----------------------------------------------------
 local function get_chance_explosion()
-	local chance = math.Rand(options.MinExplosionChance, options.MaxExplosionChance) -- Negative means trap won't get used
-	return chance
+	return math.Rand(options.MinExplosionChance, options.MaxExplosionChance) -- Negative means trap won't get used
 end
 
 ----------------------------------------------------
@@ -138,8 +134,7 @@ end
 -- @return chance Float: chance
 ----------------------------------------------------
 local function get_chance_trap()
-	local chance = math.Rand(options.MinTrapChance, options.MaxTrapChance) -- Negative means trap won't get used
-	return chance
+	return math.Rand(options.MinTrapChance, options.MaxTrapChance) -- Negative means trap won't get used
 end
 
 ----------------------------------------------------
@@ -148,8 +143,7 @@ end
 -- @return chance Float: chance
 ----------------------------------------------------
 local function get_chance_spawn()
-	local chance = math.Rand(options.MinSpawnChance, options.MaxSpawnChance) -- 0.03 would be 3% and 1 would be 100%
-	return chance
+	return math.Rand(options.MinSpawnChance, options.MaxSpawnChance) -- 0.03 would be 3% and 1 would be 100%
 end
 
 ----------------------------------------------------
@@ -158,8 +152,7 @@ end
 -- @return radius Integer: returns an amount
 ----------------------------------------------------
 local function get_trap_usage_radius()
-	local radius = math.random(options.MinTrapRange, options.MaxTrapRange) -- In units
-	return radius
+	return math.random(options.MinTrapRange, options.MaxTrapRange) -- In units
 end
 
 ----------------------------------------------------
@@ -238,10 +231,8 @@ end
 ----------------------------------------------------
 local function get_creationid_within_range()
 	for _, ent in pairs(ents.FindByClass("info_manipulate")) do  -- Gets all traps
-		for ___, ply in pairs(ents.FindInSphere(ent:GetPos(), 96)) do -- Checks if any players within given radius of the trap
-			if (ply:IsPlayer()) then 
-				print("CreationID: " .. ent:MapCreationID())
-			end
+		for ___, ply in pairs(get_players_within_radius(ent:GetPos(), 96)) do -- Checks if any players within given radius of the trap
+			print("CreationID: " .. ent:MapCreationID())
 		end
 	end
 end
@@ -327,22 +318,6 @@ local function move_zombie_to_player()
 	local zb = table.Random(ents.FindByClass("npc_*")) -- Get random zombie
 	if ((IsValid(player)) && (IsValid(zb)) && (check_zombie_class(zb))) then zb:ForceGo(player:GetPos()) end
 	options.LastZombieCommanded = zb
-end
-
-----------------------------------------------------	
--- create_zm_view()
--- Creates the box for the current pos of the AI
-----------------------------------------------------
-function create_zm_view()
-	options.View = ents.Create("prop_thumper")
-	if (!IsValid(options.View)) then return end
-	options.View:SetModel( "models/props_wasteland/controlroom_filecabinet001a.mdl" )
-	options.View:SetMaterial( "models/XQM/LightLinesRed_tool", true )
-	options.View:SetColor(Color(255, 0, 0))
-	options.View:SetPos(Vector(0, 0, 0))
-	options.View:StopMotionController()
-	options.View:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
-	options.View:Spawn()
 end
 
 ----------------------------------------------------	
@@ -628,7 +603,6 @@ local function set_zm_settings()
 		zmBot:SetZMPoints(10000)
 		options.UseExplosionChance = get_chance_explosion()
 		options.Debug = false
-		options.View = nil
 		options.SetUp = false
 	else -- Dynamic stats, that can change during the game
 		options.MaxZombies = get_max_zombies()
@@ -953,7 +927,6 @@ end )
 concommand.Add( "zm_ai_debug", function(ply, cmd, args)
 	if (ply:IsAdmin()) then 
 		if (!options.Debug) then 
-			--if (options.View == nil) then create_zm_view() end
 			options.Debug = true 
 			print("Debug Enabled")
 		else 
