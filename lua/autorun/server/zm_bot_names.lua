@@ -1,6 +1,9 @@
--- Names can be added to this table, the AI will randomly use one.
+----------------------------------------------------
+-- Names can be added to this table, the AI will randomly select one.
+----------------------------------------------------
+
 local names = { 
-"Zombie Master Bot"
+    "Zombie Master Bot"
 }
 
 return names
