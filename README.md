@@ -40,6 +40,9 @@ Play!
 * zm_ai_min_distance_to_act_trap - Min distance player has to be for trap to be activated. Default 92 
 * zm_ai_max_distance_to_act_trap - Max distance player can be before the AI won't activate the trap. Default: 224
 
+### How to add better support for maps?
+View the "example_map.lua" file within the zm_bot_maps directory and use other added maps as examples.
+
 License
 ----
 

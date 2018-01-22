@@ -1,3 +1,4 @@
+-- Creating 9 triggers boxes in certain positions to allow the AI to set off traps anywhere within the bounds of the map
 local mapTrapSettings = {}
 local slots = {}
 local traps = {	{1237, 1246, 1320, 1338, 1354, 1370, 1388, 1436}, 

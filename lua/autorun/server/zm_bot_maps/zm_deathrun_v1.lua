@@ -1,8 +1,8 @@
 local mapSettings = {
-    {"MinTrapRange", 10000}, -- minTrapRange
-    {"MaxTrapRange", 10001}, -- maxTrapRange
-    {"MinTrapChance", 0.01}, -- minTrapChance
-    {"MaxTrapChance", 0.4} -- maxTrapChance
+    {"MinTrapRange", 10000},
+    {"MaxTrapRange", 10001},
+    {"MinTrapChance", 0.01},
+    {"MaxTrapChance", 0.4}
 }
 
 return mapSettings, nil, nil

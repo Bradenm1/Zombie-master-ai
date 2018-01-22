@@ -1,13 +1,3 @@
--- Table layout
--------------------------------------
--- trapName, what's the trap
--- creationID, map creationID of the trap
--- usageChance, chance the trap is used, nil means bot choses
--- usageRadius, the radius of the trap, nil means bot choses
--- positions, position for the trap (One vector), trigger box (Two vectors), nil means default position
--- lineOfSight, if player needs to be in view of the trap
--------------------------------------
-
 local smallStructorVector = Vector(-734, -1215, -911)
 local pathWayVector = Vector(731, -2085, -834)
 local laserVector = Vector(22, -189, -663)
