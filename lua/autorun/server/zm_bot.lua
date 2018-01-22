@@ -492,8 +492,10 @@ local function set_all_map_settings()
 					set_explosion_settings(exp.useExplosionChance, exp.explosionUsageRadius, exp.position, exp.lineOfSight)
 				end
 			end
+			return true
 		end
 	end
+	return false
 end
 
 ----------------------------------------------------
@@ -503,7 +505,8 @@ end
 local function set_zm_settings()
 	if (options.SetUp) then -- The setup for the bot 
 		-- This section is done once during the round start
-		set_all_map_settings() -- Sets custom settings
+		local hasCustom = set_all_map_settings() -- Sets custom settings
+		if (!hasCustom) then set_up_all_traps() end -- Sets up the traps in the map if not custom settings
 		zmBot:SetZMPoints(10000)
 		options.UseExplosionChance = get_chance_explosion()
 		options.Debug = false
