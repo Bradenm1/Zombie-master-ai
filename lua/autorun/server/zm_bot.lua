@@ -750,7 +750,7 @@ end
 -- Think hook for controlling the bot
 ----------------------------------------------------
 hook.Add( "Think", "Control_Bot", function()
-	--get_creationid_within_range()
+	if (options.Debug) then get_creationid_within_range() end
 	if (engine.ActiveGamemode() != GAMEMODE) then -- Checking if gamemode is active
 		print("Zombie Master Gamemode not active, disabling ZM AI")
 		hook.Remove( "Think", "Control_Bot" ) -- Disables the mod is not active
