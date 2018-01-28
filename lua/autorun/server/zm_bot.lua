@@ -20,7 +20,7 @@ local speedDelay, spawnDelay, commandDelay, killZombieDelay, spawnRangeDelay, ex
 local zmBot = nil -- Where the player bot is stored, this is more effiencent since don't need to loop though all bots
 
 -- Bot Options
--- Chance: 0.0 never use 1.0 always use
+-- Chance: -0.02 never use, 1.0 always use
 -- Radius/Range: Units
 -- Theses are the default stats
 local options = {
@@ -353,12 +353,11 @@ end
 
 ----------------------------------------------------	
 -- set_explosion_settings()
--- Set custom stats for a certain trap
--- @param arg1 Float: Trap usage chance
--- @param arg2 Integer: Trap usage radius
--- @param arg3 Table: Vector(s) position for trap or position of trigger box
+-- Set custom stats for a certain explosion 
+-- @param arg1 Float: Explosion usage chance
+-- @param arg2 Integer: Explosion usage radius
+-- @param arg3 Table: Vector position for explosion 
 -- @param arg4 Boolean: If a player needs to be in line of sight
--- @return Boolean: If settings were applied
 ----------------------------------------------------
 local function set_explosion_settings(...) 
 	local arguments = {...} -- Get passed in arguments as table

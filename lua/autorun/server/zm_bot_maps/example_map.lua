@@ -44,7 +44,7 @@ local mapTrapSettings = {
         creationID  = 2015,
         usageChance = nil,
         usageRadius = nil,
-        positions   = {Vector(-2290, 2322, -231)},
+        positions   = {Vector(-2290, 2322, -231)}, -- Sphere
         lineOfSight = true
     },
     {
@@ -54,7 +54,15 @@ local mapTrapSettings = {
         usageRadius = 256, -- In Units
         positions   = nil,
         lineOfSight = false
-    }
+    },
+    {
+        trapName    = "Long ramp which barrels fall down",
+        creationID  = 2015,
+        usageChance = nil,
+        usageRadius = nil, -- un-used for trigger box
+        positions   = {Vector(-2290, 2322, -231), Vector(-234, 543, 300)}, -- Trigger box which covers the ramp, for example.
+        lineOfSight = false -- Better to be false if using trigger box
+    },
 }
 
 -------------------------------------
