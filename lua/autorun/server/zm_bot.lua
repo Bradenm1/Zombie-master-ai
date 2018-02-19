@@ -59,7 +59,7 @@ local options = {
 	LastZombieCommanded = nil, -- Last zombie commanded
 	Traps				= {}, -- Used to stored the traps at round starts if dynamic is false
 	Explosions			= {}, -- Custom explosions
-	PlayersToIgnore		= {} -- List of players to be ignored by the AI
+	PlayersToIgnore		= {} -- List of players to be ignored by the AI. Does not count zombies.
 }
 
 ----------------------------------------------------
