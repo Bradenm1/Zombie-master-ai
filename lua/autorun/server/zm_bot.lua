@@ -1,7 +1,7 @@
 -- Author: Bradenm1
 -- Repo: https://github.com/Bradenm1/Zombie-master-ai
 
-if (SERVER) then
+if (CLIENT) then return end
 
 -- Saving while playing and editing the bot will break it
 
@@ -13,7 +13,8 @@ local ZOMBIEMASTERTEAM = 2
 local SPECTATORTEAM = 3
 local DAMAGEZOMBIEMULTIPLIER = 1.25
 
-local names = include("zm_bot_names.lua")
+local names = include("zm_bot_names.lua") -- Gets the names for the bot
+local botName = names[math.random(#names)] -- Create a bot given the name list
 
 -- Vars
 local speedDelay, spawnDelay, commandDelay, killZombieDelay, spawnRangeDelay, explosionDelay = 0, 0, 0, 0, 0, 0 -- Delays
@@ -464,33 +465,66 @@ local function set_up_all_traps()
 end
 
 ----------------------------------------------------	
+-- set_map_trap_settings()
+-- @param arg1 Table: The map trap settings
+-- Sets custom map trap settings givne the table
+----------------------------------------------------
+local function set_map_trap_settings(mapTrapSettings)
+	if (mapTrapSettings) then -- Sets up custom traps if any
+		for _, trap in ipairs(mapTrapSettings) do
+			set_trap_settings(trap.creationID, trap.usageChance, trap.usageRadius, trap.positions, trap.lineOfSight)
+		end
+		return true
+	end
+	return false
+end
+
+----------------------------------------------------	
+-- set_map_settings()
+-- @param arg1 Table: The overall map settings
+-- Sets custom map settings given the table
+----------------------------------------------------
+local function set_map_settings(mapSettings)
+	if (mapSettings) then -- Sets up custom settings if any
+		for _, setting in ipairs(mapSettings) do
+			local index = setting[1]
+			local value = setting[2]
+			options[index] = value
+		end
+		return true
+	end
+	return false
+end
+
+----------------------------------------------------	
+-- set_map_settings()
+-- @param arg1 Table: The explosion map settings
+-- Sets custom map explosion settings given the table
+----------------------------------------------------
+local function set_map_explosion_settings(mapExplosionSettings)
+	if (mapExplosionSettings) then -- Sets up custom explosions if any
+		for _, exp in ipairs(mapExplosionSettings) do
+			set_explosion_settings(exp.useExplosionChance or get_chance_explosion(), exp.explosionUsageRadius or options.ExplosionSearchRange, exp.position, exp.lineOfSight)
+		end
+		return true
+	end
+	return false
+end
+
+----------------------------------------------------	
 -- set_all_map_settings()
 -- Gets all custom settings for maps if set and sets it
 ----------------------------------------------------
 local function set_all_map_settings()
-	local map = game.GetMap() .. ".lua"
-	local files, _ = file.Find(MAPSETTINGSPATH .. "*", "LUA") 
+	local map = game.GetMap() .. ".lua" -- Gets the current map, and adds .lua extention
+	local files, _ = file.Find(MAPSETTINGSPATH .. "*", "LUA") -- Gets files in folder
 	for i, filename in ipairs(files) do
-		if (map == filename) then
+		if (map == filename) then -- Check if the bot has custom settings for the given loaded map
 			mapSettings, mapTrapSettings, mapExplosionSettings = include(MAPSETTINGSPATH .. map) -- Gets settings from the map file
-			if (mapSettings) then -- Sets up custom settings if any
-				for _, setting in ipairs(mapSettings) do
-					local index = setting[1]
-					local value = setting[2]
-					options[index] = value
-				end
-			end
-			set_up_all_traps() -- Sets up the traps in the map given the settings
-			if (mapTrapSettings) then -- Sets up custom traps if any
-				for _, trap in ipairs(mapTrapSettings) do
-					set_trap_settings(trap.creationID, trap.usageChance, trap.usageRadius, trap.positions, trap.lineOfSight)
-				end
-			end
-			if (mapExplosionSettings) then -- Sets up custom explosions if any
-				for _, exp in ipairs(mapExplosionSettings) do
-					set_explosion_settings(exp.useExplosionChance or get_chance_explosion(), exp.explosionUsageRadius or options.ExplosionSearchRange, exp.position, exp.lineOfSight)
-				end
-			end
+			set_map_settings(mapSettings) -- Set overall map settings
+			set_up_all_traps() -- Sets up the traps in the map given the settings, put before settings custom traps.
+			set_map_trap_settings(mapTrapSettings) -- Set map trap settings
+			set_map_explosion_settings(mapExplosionSettings) -- Set explosion settings
 			return true
 		end
 	end
@@ -506,7 +540,7 @@ local function set_zm_settings()
 		-- This section is done once during the round start
 		local hasCustom = set_all_map_settings() -- Sets custom settings
 		if (!hasCustom) then set_up_all_traps() end -- Sets up the traps in the map if no custom settings
-		zmBot:SetZMPoints(10000)
+		--zmBot:SetZMPoints(10000) -- Allows the AI to spawn anything
 		options.UseExplosionChance = get_chance_explosion()
 		options.Debug = false
 		options.SetUp = false
@@ -536,23 +570,7 @@ end
 ----------------------------------------------------
 local function spawn_zombie(ent)
 	if (options.SpawnZombieChance < math.Rand(0, 1)) then return nil end
-	local zb = pick_zombie()
-	-- Attempt to spawn another zombie if failed
-	--[[local allowed = true
-	local attempts = 0
-	while (allowed) do
-		if (attempts > 5) then 
-			if (options.Debug) then zmBot:Say("Attempt to spawn zombie failed... Query: " .. #ent.query) end
-			return nil 
-		end
-		local data = gamemode.Call("GetZombieData", zb)
-		if ((data) && (#ent.query < 18)) then
-			local zombieFlags = ent:GetZombieFlags() or 0
-			allowed = gamemode.Call("CanSpawnZombie", data.Flag or 0, zombieFlags)
-			if (!allowed) then zb = pick_zombie() end
-			attempts = attempts + 1
-		end
-	end]]
+	local zb = pick_zombie() -- The bot can sometimes pick a zombie it cannot spawn
 	ent:AddQuery(zmBot, zb, 1)
 	options.LastSpawned = ent
 	if (options.Debug) then zmBot:Say("Attempted to spawn: " .. zb) end
@@ -580,7 +598,7 @@ local function check_for_closest_spawner()
 			else entToUse = spawn end -- Set First Spawner in the table to check
 		end
 	end
-	if (!entToUse) then return nil end
+	if (!entToUse) then return nil end -- checks if a spawner was not found
 	local dis = entToUse:GetPos():Distance(player:GetPos()) -- Get distance of closest spawner to player
 	if (dis > options.SpawnRadius) then return nil end -- Checks if spawn is within distance
 	return entToUse -- Return the closest spawn
@@ -738,9 +756,8 @@ end
 ----------------------------------------------------
 local function create_zm_bot()
 	if ((!game.SinglePlayer()) && (#player.GetAll() < game.MaxPlayers())) then
-		local bot = player.CreateNextBot(names[math.random(#names)]) -- Create a bot given the name list
-		bot.IsZMBot = true -- Set bot as ZM bot
-		zmBot = bot -- Assign bot as global for usage
+		zmBot = player.CreateNextBot(botName) -- Create a bot given the name list
+		zmBot.IsZMBot = true -- Set bot as ZM bot
 	else print( "Cannot create bot. Do you have free slots or are you in Single Player?" ) end -- This prints to console if the bot cannot spawn
 end
 
@@ -889,5 +906,3 @@ concommand.Add( "zm_ai_enabled", function(ply, cmd, args)
 		end
 	end
 end )
-
-end
